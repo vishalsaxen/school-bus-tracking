@@ -208,6 +208,33 @@ button, input { font-family: inherit; }
 .empty { text-align: center; font-size: 13px; color: var(--muted); margin: 8px 0; }
 .empty[hidden] { display: none; }
 
+/* +91 phone input with OTP */
+.field label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.phone-row, .otp-row { display: flex; gap: 8px; align-items: stretch; }
+.otp-row[hidden] { display: none; }
+.prefix {
+  display: flex; align-items: center; padding: 0 12px; border-radius: 12px;
+  background: var(--navy); color: var(--lilac); font-size: 14px; font-weight: 800;
+}
+.phone-row input, .otp-row input {
+  flex: 1; min-width: 0; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  font-size: 14px; color: var(--black); background: #FBFAFF; font-family: inherit;
+}
+.phone-row input:focus, .otp-row input:focus { outline: none; border-color: #8E6BFF; box-shadow: 0 0 0 4px var(--lilac-soft); }
+.otp-input { letter-spacing: 0.3em; }
+.otp-btn, .verify-btn {
+  flex: none; border: none; cursor: pointer; padding: 0 12px; border-radius: 12px;
+  background: var(--lilac); color: var(--navy); font-size: 12px; font-weight: 800;
+}
+.otp-btn:disabled, .verify-btn:disabled { opacity: 0.5; cursor: wait; }
+.otp-status { margin: 0; min-height: 1em; font-size: 11px; font-weight: 600; color: var(--muted); }
+.otp-status.ok { color: #1F9D6A; }
+.otp-status.err { color: var(--danger); }
+.field.is-verified .phone-row input { border-color: #1F9D6A; background: #F2FBF7; }
+.field.is-verified .otp-btn { background: #1F9D6A; color: var(--white); }
+.recaptcha:empty { display: none; }
+.verified-badge { color: #1F9D6A; font-weight: 800; }
+
 /* Bus count stepper */
 .bus-count { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 14px 16px; }
 .bus-count-label { font-size: 14px; font-weight: 800; color: var(--navy); }

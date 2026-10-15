@@ -105,7 +105,7 @@
     <!-- Child Details tab -->
     <section id="panel-children" class="panel" role="tabpanel" aria-labelledby="tab-children" hidden>
       <h1 class="panel-title">Child Details</h1>
-      <p class="panel-sub">Add each child with their bus and two parent mobile numbers.</p>
+      <p class="panel-sub">Add each child with their bus, both parents' mobiles (verified by OTP) and an email.</p>
 
       <div class="card bus-count">
         <div>
@@ -128,14 +128,37 @@
           <span>Bus</span>
           <select id="child-bus" name="bus"></select>
         </label>
+        <div class="field">
+          <label for="child-mobile1">Mother's mobile</label>
+          <div class="phone-row">
+            <span class="prefix">+91</span>
+            <input id="child-mobile1" name="mobile1" type="tel" inputmode="numeric" maxlength="16" placeholder="98765 43210" required>
+            <button class="otp-btn" type="button" data-slot="1">Send OTP</button>
+          </div>
+          <div class="otp-row" data-slot="1" hidden>
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" aria-label="OTP for mother's mobile">
+            <button class="verify-btn" type="button" data-slot="1">Verify</button>
+          </div>
+          <p class="otp-status" data-slot="1" aria-live="polite"></p>
+        </div>
+        <div class="field">
+          <label for="child-mobile2">Father's mobile</label>
+          <div class="phone-row">
+            <span class="prefix">+91</span>
+            <input id="child-mobile2" name="mobile2" type="tel" inputmode="numeric" maxlength="16" placeholder="91234 56789" required>
+            <button class="otp-btn" type="button" data-slot="2">Send OTP</button>
+          </div>
+          <div class="otp-row" data-slot="2" hidden>
+            <input class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" aria-label="OTP for father's mobile">
+            <button class="verify-btn" type="button" data-slot="2">Verify</button>
+          </div>
+          <p class="otp-status" data-slot="2" aria-live="polite"></p>
+        </div>
         <label class="field">
-          <span>Mobile number 1</span>
-          <input id="child-mobile1" name="mobile1" type="tel" inputmode="tel" placeholder="e.g. 98765 43210" required>
+          <span>Parent email</span>
+          <input id="child-email" name="email" type="email" inputmode="email" placeholder="e.g. parent@example.com" required>
         </label>
-        <label class="field">
-          <span>Mobile number 2</span>
-          <input id="child-mobile2" name="mobile2" type="tel" inputmode="tel" placeholder="e.g. 91234 56789" required>
-        </label>
+        <div id="recaptcha" class="recaptcha"></div>
         <p id="form-error" class="form-error" role="alert"></p>
         <button class="add-btn" type="submit">Add child</button>
       </form>
@@ -168,6 +191,7 @@
       </button>
     </nav>
   </main>
+  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
