@@ -4,7 +4,7 @@ Two apps live in this repo as separate code sections:
 
 | Folder    | App                        | Status        |
 |-----------|----------------------------|---------------|
-| `child/`  | **Beacon Go** (child app)  | Tracker screen UI |
+| `child/`  | **Beacon Go** (child app)  | Tracker + Child Details tabs |
 | `parent/` | **Beacon** (parent app)    | Coming next   |
 
 ## Run the child app
