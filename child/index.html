@@ -33,6 +33,48 @@
         </div>
 
         <button id="toggle-btn" class="toggle-btn" type="button" aria-pressed="true">Pause sharing</button>
+
+        <div class="bus-scene" aria-hidden="true">
+          <svg class="bus" viewBox="0 0 240 120" width="220" height="110">
+            <g class="bus-body">
+              <!-- body -->
+              <rect x="18" y="18" width="186" height="64" rx="16" fill="#C9B8FF" stroke="#0B1B4D" stroke-width="4"/>
+              <path d="M204 40 h10 a8 8 0 0 1 8 8 v26 a8 8 0 0 1 -8 8 h-10 z" fill="#C9B8FF" stroke="#0B1B4D" stroke-width="4" stroke-linejoin="round"/>
+              <rect x="18" y="62" width="204" height="8" fill="#0B1B4D"/>
+              <!-- windows -->
+              <rect x="32" y="28" width="30" height="24" rx="6" fill="#fff" stroke="#0B1B4D" stroke-width="3"/>
+              <rect x="70" y="28" width="30" height="24" rx="6" fill="#fff" stroke="#0B1B4D" stroke-width="3"/>
+              <rect x="108" y="28" width="30" height="24" rx="6" fill="#fff" stroke="#0B1B4D" stroke-width="3"/>
+              <!-- face: one open eye that blinks, one winking eye, big smile -->
+              <circle cx="160" cy="38" r="9" fill="#fff" stroke="#0B1B4D" stroke-width="3"/>
+              <circle class="pupil" cx="162" cy="39" r="4" fill="#0A0A12"/>
+              <rect class="eyelid" x="150" y="28" width="20" height="20" rx="10" fill="#C9B8FF"/>
+              <path d="M178 40 q8 -8 16 0" fill="none" stroke="#0A0A12" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M162 52 q14 12 28 0" fill="none" stroke="#0A0A12" stroke-width="3.5" stroke-linecap="round"/>
+              <circle cx="152" cy="54" r="4" fill="#FF8FB8" opacity="0.7"/>
+              <circle cx="198" cy="54" r="4" fill="#FF8FB8" opacity="0.7"/>
+              <!-- headlight and stop sign -->
+              <circle class="headlight" cx="218" cy="60" r="4" fill="#FFE66D" stroke="#0B1B4D" stroke-width="2"/>
+              <text x="56" y="68.6" font-size="6.5" font-weight="800" fill="#C9B8FF" font-family="inherit" letter-spacing="1">SCHOOL BUS</text>
+            </g>
+            <!-- wheels -->
+            <g class="wheel" style="transform-origin: 62px 88px">
+              <circle cx="62" cy="88" r="15" fill="#0A0A12"/>
+              <circle cx="62" cy="88" r="7" fill="#C9B8FF"/>
+              <path d="M62 74 V102 M48 88 H76" stroke="#C9B8FF" stroke-width="2.5"/>
+              <circle cx="62" cy="88" r="3" fill="#0B1B4D"/>
+            </g>
+            <g class="wheel" style="transform-origin: 172px 88px">
+              <circle cx="172" cy="88" r="15" fill="#0A0A12"/>
+              <circle cx="172" cy="88" r="7" fill="#C9B8FF"/>
+              <path d="M172 74 V102 M158 88 H186" stroke="#C9B8FF" stroke-width="2.5"/>
+              <circle cx="172" cy="88" r="3" fill="#0B1B4D"/>
+            </g>
+            <!-- road -->
+            <line x1="0" y1="110" x2="240" y2="110" stroke="#0B1B4D" stroke-width="3" stroke-linecap="round"/>
+            <line class="road-dash" x1="-20" y1="117" x2="260" y2="117" stroke="#C9B8FF" stroke-width="3" stroke-dasharray="14 12" stroke-linecap="round"/>
+          </svg>
+        </div>
       </div>
 
       <div class="info">

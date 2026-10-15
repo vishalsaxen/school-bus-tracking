@@ -62,6 +62,7 @@ button, input { font-family: inherit; }
 /* ---------- Tracker ---------- */
 .tracker { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 44px; }
 .tracker .status { margin-top: 66px; }
+.tracker { gap: 18px; }
 
 .ring { position: relative; width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
 .ring-bg {
@@ -97,7 +98,22 @@ button, input { font-family: inherit; }
 .toggle-btn:active { transform: translateY(0); }
 .toggle-btn:focus-visible, .tab:focus-visible, .add-btn:focus-visible { outline: 3px solid var(--lilac); outline-offset: 3px; }
 
+/* Cartoon winking bus under the button */
+.bus-scene { margin-top: 2px; }
+.bus { display: block; overflow: visible; }
+.bus-body { animation: bob 0.6s ease-in-out infinite alternate; }
+.wheel { animation: roll 0.8s linear infinite; }
+.road-dash { animation: road 0.8s linear infinite; }
+.eyelid { transform-origin: 160px 28px; transform: scaleY(0); animation: blink 3.2s ease-in-out infinite; }
+.headlight { animation: glow 1.6s ease-in-out infinite alternate; }
+@keyframes bob { to { transform: translateY(-3px); } }
+@keyframes roll { to { transform: rotate(360deg); } }
+@keyframes road { to { stroke-dashoffset: 26; } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(0); } 96% { transform: scaleY(1); } }
+@keyframes glow { to { fill: #FFF6B0; filter: drop-shadow(0 0 4px #FFE66D); } }
+
 /* Paused state */
+.frame.is-paused .bus-body, .frame.is-paused .wheel, .frame.is-paused .road-dash, .frame.is-paused .headlight { animation-play-state: paused; }
 .frame.is-paused .ring-bg { opacity: 0.25; animation-play-state: paused; }
 .frame.is-paused .pulse { display: none; }
 .frame.is-paused .status-icon { stroke: #8A8DA6; filter: none; }
@@ -192,5 +208,5 @@ button, input { font-family: inherit; }
 .frame.on-children .empty { color: var(--lilac); }
 
 @media (prefers-reduced-motion: reduce) {
-  .blob, .ring-bg, .pulse, .child-item { animation: none; }
+  .blob, .ring-bg, .pulse, .child-item, .bus-body, .wheel, .road-dash, .eyelid, .headlight { animation: none; }
 }
