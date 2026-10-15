@@ -5,6 +5,7 @@
 const STORAGE_KEY = 'beacon-go.children';
 const BUS_COUNT_KEY = 'beacon-go.busCount';
 const MAX_BUSES = 50;
+const DEFAULT_BUSES = 7; // the school currently runs Bus No. 1 to Bus No. 7
 
 const state = {
   sharing: true,
@@ -88,9 +89,9 @@ function loadChildren() {
 function loadBusCount() {
   try {
     const saved = parseInt(localStorage.getItem(BUS_COUNT_KEY), 10);
-    return saved >= 1 ? Math.min(saved, MAX_BUSES) : 1;
+    return saved >= 1 ? Math.min(saved, MAX_BUSES) : DEFAULT_BUSES;
   } catch {
-    return 1;
+    return DEFAULT_BUSES;
   }
 }
 
