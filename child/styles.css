@@ -62,7 +62,7 @@ button, input { font-family: inherit; }
 /* ---------- Tracker ---------- */
 .tracker { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 44px; }
 .tracker .status { margin-top: 66px; }
-.tracker { gap: 18px; }
+.tracker { gap: 16px; }
 
 .ring { position: relative; width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
 .ring-bg {
@@ -97,6 +97,41 @@ button, input { font-family: inherit; }
 .toggle-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(11, 27, 77, 0.45); }
 .toggle-btn:active { transform: translateY(0); }
 .toggle-btn:focus-visible, .tab:focus-visible, .add-btn:focus-visible { outline: 3px solid var(--lilac); outline-offset: 3px; }
+
+/* Pause + Send buttons */
+.actions { display: flex; gap: 10px; align-items: center; }
+.toggle-btn { padding: 16px 32px; }
+.send-btn {
+  display: flex; align-items: center; gap: 6px; border: none; cursor: pointer;
+  padding: 16px 20px; border-radius: 999px; font-size: 15px; font-weight: 700;
+  background: var(--lilac); color: var(--navy); box-shadow: 0 10px 24px rgba(142, 107, 255, 0.35);
+  transition: transform 0.15s, opacity 0.2s;
+}
+.send-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+.map-link { margin-top: -10px; font-size: 12px; font-weight: 700; color: #6C4BFF; text-decoration: none; }
+.map-link:hover { text-decoration: underline; }
+
+/* Send sheet */
+.sheet {
+  border: none; border-radius: 24px; padding: 20px; width: min(340px, calc(100% - 32px));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); font-family: inherit; color: var(--black);
+}
+.sheet::backdrop { background: rgba(10, 10, 18, 0.55); backdrop-filter: blur(2px); }
+.sheet-title { margin: 0; font-size: 18px; font-weight: 800; color: var(--navy); }
+.sheet-sub { margin: 6px 0 14px; font-size: 12px; color: var(--muted); }
+.sheet-options { display: flex; flex-direction: column; gap: 8px; }
+.sheet-option {
+  display: block; text-decoration: none; color: var(--black); padding: 12px 14px;
+  border: 1.5px solid var(--border); border-radius: 14px; background: #FBFAFF;
+}
+.sheet-option:hover { border-color: #8E6BFF; }
+.sheet-option strong { display: block; font-size: 14px; }
+.sheet-option span { font-size: 12px; color: var(--muted); }
+.sheet-cancel {
+  margin-top: 12px; width: 100%; border: none; cursor: pointer; padding: 12px; border-radius: 12px;
+  background: var(--lilac-soft); color: var(--navy); font-weight: 700; font-size: 14px;
+}
 
 /* Cartoon winking bus under the button */
 .bus-scene { margin-top: 2px; }
