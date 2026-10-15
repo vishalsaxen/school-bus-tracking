@@ -1,6 +1,7 @@
 // Beacon Go (child app).
-// UI only for now: location sending and battery are placeholders until the backend exists,
-// and Child Details are kept in this browser's localStorage.
+// Uses the phone's live GPS while sharing is on. With no backend yet, location reaches parents
+// by text: "Send" opens the messages app with their numbers and a map link.
+// Child Details are kept in this browser's localStorage.
 
 const STORAGE_KEY = 'beacon-go.children';
 const BUS_COUNT_KEY = 'beacon-go.busCount';
@@ -9,6 +10,8 @@ const DEFAULT_BUSES = 7; // the school currently runs Bus No. 1 to Bus No. 7
 
 const state = {
   sharing: true,
+  position: null,   // latest GeolocationPosition
+  geoError: null,   // 'unsupported' | 'denied' | 'unavailable'
   busNumber: 1,
   children: loadChildren(),
   busCount: loadBusCount(),
@@ -37,21 +40,136 @@ const toggleBtn = document.getElementById('toggle-btn');
 const busChip = document.getElementById('bus-chip');
 const batteryValue = document.getElementById('battery-value');
 
+const sendBtn = document.getElementById('send-btn');
+const mapLink = document.getElementById('map-link');
+const sendDialog = document.getElementById('send-dialog');
+const sendOptions = document.getElementById('send-options');
+
+function timeAgo(timestamp) {
+  const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (seconds < 10) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`;
+}
+
+function mapsUrl({ latitude, longitude }) {
+  return `https://maps.google.com/?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+}
+
 function renderTracker() {
-  const { sharing } = state;
-  frame.classList.toggle('is-paused', !sharing);
-  title.textContent = sharing ? 'Sharing your location' : 'Location sharing is off';
-  subtitle.textContent = sharing
-    ? 'Updated just now · Your parents can see where you are'
-    : 'Turn it back on so your parents can see where you are';
+  const { sharing, position, geoError } = state;
+  frame.classList.toggle('is-paused', !sharing || Boolean(geoError));
+
+  if (!sharing) {
+    title.textContent = 'Location sharing is off';
+    subtitle.textContent = 'Turn it back on so your parents can see where you are';
+  } else if (geoError === 'denied') {
+    title.textContent = 'Location permission needed';
+    subtitle.textContent = 'Allow location for this site in your browser settings, then tap Pause and Start.';
+  } else if (geoError) {
+    title.textContent = 'Can\'t find your location';
+    subtitle.textContent = geoError === 'unsupported'
+      ? 'This browser doesn\'t support location. Try Chrome or Safari on your phone.'
+      : 'Check that location (GPS) is turned on for your phone.';
+  } else if (!position) {
+    title.textContent = 'Finding your location…';
+    subtitle.textContent = 'Allow location access if your phone asks';
+  } else {
+    title.textContent = 'Sharing your location';
+    subtitle.textContent = `Updated ${timeAgo(position.timestamp)} · accurate to ${Math.round(position.coords.accuracy)} m`;
+  }
+
+  const hasFix = sharing && position && !geoError;
+  sendBtn.disabled = !hasFix;
+  mapLink.hidden = !hasFix;
+  if (hasFix) {
+    const { latitude, longitude } = position.coords;
+    mapLink.href = mapsUrl(position.coords);
+    mapLink.textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)} · Open in Maps`;
+  }
+
   toggleBtn.textContent = sharing ? 'Pause sharing' : 'Start sharing';
   toggleBtn.setAttribute('aria-pressed', String(sharing));
   busChip.textContent = `Bus No. ${state.busNumber}`;
 }
 
+// ---------- Live GPS ----------
+let watchId = null;
+
+function startWatching() {
+  if (!('geolocation' in navigator)) {
+    state.geoError = 'unsupported';
+    return;
+  }
+  state.geoError = null;
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      state.position = position;
+      state.geoError = null;
+      renderTracker();
+    },
+    (error) => {
+      state.geoError = error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable';
+      renderTracker();
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 },
+  );
+}
+
+function stopWatching() {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+}
+
 toggleBtn.addEventListener('click', () => {
   state.sharing = !state.sharing;
+  if (state.sharing) startWatching(); else stopWatching();
   renderTracker();
+});
+
+// Keep "Updated … ago" fresh between GPS fixes.
+setInterval(() => { if (state.sharing && state.position) renderTracker(); }, 10000);
+
+// ---------- Send location to parents by text ----------
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+function smsUrl(numbers, body) {
+  const to = numbers.map((n) => n.replace(/[\s-]/g, '')).join(',');
+  // iOS expects "&body=", Android expects "?body=".
+  return `sms:${to}${isIOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
+}
+
+function messageFor(child) {
+  const link = mapsUrl(state.position.coords);
+  return `${child.name} is here (Bus No. ${child.bus || 1}), updated ${new Date(state.position.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: ${link}`;
+}
+
+sendBtn.addEventListener('click', () => {
+  if (!state.position) return;
+  if (state.children.length === 0) {
+    alert('Add your name and your parents\' mobile numbers in Child Details first.');
+    document.getElementById('tab-children').click();
+    return;
+  }
+  if (state.children.length === 1) {
+    const [child] = state.children;
+    window.location.href = smsUrl([child.mobile1, child.mobile2], messageFor(child));
+    return;
+  }
+  sendOptions.replaceChildren(...state.children.map((child) => {
+    const option = document.createElement('a');
+    option.className = 'sheet-option';
+    option.href = smsUrl([child.mobile1, child.mobile2], messageFor(child));
+    const name = document.createElement('strong');
+    name.textContent = child.name;
+    const numbers = document.createElement('span');
+    numbers.textContent = `${child.mobile1} · ${child.mobile2}`;
+    option.append(name, numbers);
+    option.addEventListener('click', () => sendDialog.close());
+    return option;
+  }));
+  sendDialog.showModal();
 });
 
 // Show the real battery level where the browser supports it; keep the mockup value otherwise.
@@ -238,5 +356,6 @@ function showError(message, input) {
 }
 
 state.busCount = Math.max(state.busCount, minBusCount());
+startWatching();
 renderTracker();
 renderChildren();

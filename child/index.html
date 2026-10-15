@@ -32,7 +32,14 @@
           <div id="status-subtitle" class="status-subtitle">Updated just now · Your parents can see where you are</div>
         </div>
 
-        <button id="toggle-btn" class="toggle-btn" type="button" aria-pressed="true">Pause sharing</button>
+        <div class="actions">
+          <button id="toggle-btn" class="toggle-btn" type="button" aria-pressed="true">Pause sharing</button>
+          <button id="send-btn" class="send-btn" type="button" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/></svg>
+            Send
+          </button>
+        </div>
+        <a id="map-link" class="map-link" href="#" target="_blank" rel="noopener" hidden></a>
 
         <div class="bus-scene" aria-hidden="true">
           <svg class="bus" viewBox="0 0 240 120" width="220" height="110">
@@ -140,6 +147,15 @@
       <div id="child-list" class="child-groups"></div>
       <p id="empty-state" class="empty">No children added yet.</p>
     </section>
+
+    <dialog id="send-dialog" class="sheet">
+      <form method="dialog">
+        <h2 class="sheet-title">Send my location to…</h2>
+        <p class="sheet-sub">Opens your messages app with your parents' numbers and a map link. Tap send there.</p>
+        <div id="send-options" class="sheet-options"></div>
+        <button class="sheet-cancel" value="cancel">Cancel</button>
+      </form>
+    </dialog>
 
     <nav class="tabbar" role="tablist">
       <button id="tab-tracker" class="tab is-active" role="tab" aria-selected="true" aria-controls="panel-tracker" data-panel="panel-tracker" type="button">
