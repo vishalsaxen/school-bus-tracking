@@ -56,12 +56,28 @@
     <!-- Child Details tab -->
     <section id="panel-children" class="panel" role="tabpanel" aria-labelledby="tab-children" hidden>
       <h1 class="panel-title">Child Details</h1>
-      <p class="panel-sub">Add each child with two parent mobile numbers.</p>
+      <p class="panel-sub">Add each child with their bus and two parent mobile numbers.</p>
+
+      <div class="card bus-count">
+        <div>
+          <div class="bus-count-label">Buses in school</div>
+          <div class="bus-count-hint">Children can be added to any of these buses.</div>
+        </div>
+        <div class="stepper">
+          <button id="bus-minus" class="step-btn" type="button" aria-label="Fewer buses">−</button>
+          <span id="bus-count" class="step-value" aria-live="polite">1</span>
+          <button id="bus-plus" class="step-btn" type="button" aria-label="More buses">+</button>
+        </div>
+      </div>
 
       <form id="child-form" class="card form" autocomplete="off" novalidate>
         <label class="field">
           <span>Child name</span>
           <input id="child-name" name="name" type="text" placeholder="e.g. Aarav Sharma" required>
+        </label>
+        <label class="field">
+          <span>Bus</span>
+          <select id="child-bus" name="bus"></select>
         </label>
         <label class="field">
           <span>Mobile number 1</span>
@@ -79,7 +95,7 @@
         <span>Children</span>
         <span id="child-count" class="count">0</span>
       </div>
-      <ul id="child-list" class="child-list"></ul>
+      <div id="child-list" class="child-groups"></div>
       <p id="empty-state" class="empty">No children added yet.</p>
     </section>
 

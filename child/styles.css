@@ -121,11 +121,11 @@ button, input { font-family: inherit; }
 .card { background: var(--white); border-radius: 22px; padding: 18px; box-shadow: 0 14px 34px rgba(11, 27, 77, 0.18); }
 .form { display: flex; flex-direction: column; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; color: var(--navy); }
-.field input {
+.field input, .field select {
   border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--black);
   background: #FBFAFF; transition: border-color 0.2s, box-shadow 0.2s;
 }
-.field input:focus { outline: none; border-color: #8E6BFF; box-shadow: 0 0 0 4px var(--lilac-soft); }
+.field input:focus, .field select:focus { outline: none; border-color: #8E6BFF; box-shadow: 0 0 0 4px var(--lilac-soft); }
 .form-error { margin: 0; min-height: 1em; font-size: 12px; color: var(--danger); }
 .add-btn {
   border: none; cursor: pointer; padding: 14px; border-radius: 14px;
@@ -156,6 +156,23 @@ button, input { font-family: inherit; }
 .remove-btn:hover { background: var(--danger); color: var(--white); border-color: var(--danger); }
 .empty { text-align: center; font-size: 13px; color: var(--muted); margin: 8px 0; }
 .empty[hidden] { display: none; }
+
+/* Bus count stepper */
+.bus-count { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 14px 16px; }
+.bus-count-label { font-size: 14px; font-weight: 800; color: var(--navy); }
+.bus-count-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.stepper { display: flex; align-items: center; gap: 4px; background: var(--lilac-soft); padding: 4px; border-radius: 14px; }
+.step-btn {
+  width: 34px; height: 34px; border: none; border-radius: 10px; cursor: pointer;
+  background: var(--navy); color: var(--white); font-size: 18px; font-weight: 700; line-height: 1;
+}
+.step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.step-value { min-width: 32px; text-align: center; font-size: 16px; font-weight: 800; color: var(--navy); }
+
+.bus-group { display: flex; flex-direction: column; gap: 10px; }
+.bus-group + .bus-group { margin-top: 8px; }
+.bus-group-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--lilac); }
+.bus-group-title .chip { background: var(--lilac); color: var(--navy); }
 
 /* ---------- Tab bar ---------- */
 .tabbar {
