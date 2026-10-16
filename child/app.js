@@ -12,7 +12,6 @@ const state = {
   sharing: true,
   position: null,   // latest GeolocationPosition
   geoError: null,   // 'unsupported' | 'denied' | 'unavailable'
-  busNumber: 1,
   children: loadChildren(),
   busCount: loadBusCount(),
 };
@@ -57,6 +56,12 @@ function mapsUrl({ latitude, longitude }) {
   return `https://maps.google.com/?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
 }
 
+// Buses of the children saved on this phone, e.g. "Bus No. 3" or "Bus No. 1, 3".
+function busLabel() {
+  const buses = [...new Set(state.children.map((c) => c.bus || 1))].sort((a, b) => a - b);
+  return `Bus No. ${buses.length ? buses.join(', ') : 1}`;
+}
+
 function renderTracker() {
   const { sharing, position, geoError } = state;
   frame.classList.toggle('is-paused', !sharing || Boolean(geoError));
@@ -91,7 +96,7 @@ function renderTracker() {
 
   toggleBtn.textContent = sharing ? 'Pause sharing' : 'Start sharing';
   toggleBtn.setAttribute('aria-pressed', String(sharing));
-  busChip.textContent = `Bus No. ${state.busNumber}`;
+  busChip.textContent = busLabel();
 }
 
 // ---------- Live GPS ----------
@@ -190,6 +195,7 @@ const busMinus = document.getElementById('bus-minus');
 const busPlus = document.getElementById('bus-plus');
 const mobile1Input = document.getElementById('child-mobile1');
 const mobile2Input = document.getElementById('child-mobile2');
+const emailInput = document.getElementById('child-email');
 const formError = document.getElementById('form-error');
 const list = document.getElementById('child-list');
 const countEl = document.getElementById('child-count');
@@ -261,10 +267,25 @@ busPlus.addEventListener('click', () => {
   renderBuses();
 });
 
-// Accepts digits with optional leading +, spaces or dashes; 10 to 15 digits.
+// Indian mobile: 10 digits starting 6-9. Tolerates a pasted +91, 91 or 0 prefix and spaces.
+function mobileDigits(value) {
+  let digits = value.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  return digits;
+}
+
 function isValidMobile(value) {
-  const digits = value.replace(/[\s-]/g, '');
-  return /^\+?\d{10,15}$/.test(digits);
+  return /^[6-9]\d{9}$/.test(mobileDigits(value));
+}
+
+function formatMobile(value) {
+  const d = mobileDigits(value);
+  return `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 }
 
 function initials(name) {
@@ -287,7 +308,14 @@ function childItem(child) {
   const phones = document.createElement('div');
   phones.className = 'child-phones';
   phones.textContent = `${child.mobile1} · ${child.mobile2}`;
-  meta.append(name, phones);
+  const extra = document.createElement('div');
+  extra.className = 'child-phones';
+  extra.textContent = child.email || '';
+  const badge = document.createElement('span');
+  badge.className = child.verified ? 'verified-badge' : '';
+  badge.textContent = child.verified ? ' · OTP verified ✓' : ' · not verified';
+  extra.append(badge);
+  meta.append(name, phones, extra);
 
   const remove = document.createElement('button');
   remove.type = 'button';
@@ -299,6 +327,7 @@ function childItem(child) {
     state.children = state.children.filter((c) => c.id !== child.id);
     saveChildren();
     renderChildren();
+    renderTracker();
   });
 
   item.append(avatar, meta, remove);
@@ -330,21 +359,133 @@ function renderChildren() {
   emptyState.hidden = state.children.length > 0;
 }
 
+// ---------- OTP for parent mobiles ----------
+// Real SMS OTP goes through Firebase Phone Auth once firebase-config.js is filled in.
+// Without it, OTP is off and numbers are saved as "not verified".
+const OTP_ENABLED = Boolean(window.BEACON_FIREBASE_CONFIG?.apiKey && window.BEACON_FIREBASE_CONFIG?.appId);
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
+const mobileInputs = { 1: mobile1Input, 2: mobile2Input };
+const otp = { 1: { confirmation: null, verified: null }, 2: { confirmation: null, verified: null } };
+let firebase = null;
+
+async function loadFirebase() {
+  if (firebase) return firebase;
+  const [{ initializeApp }, authModule] = await Promise.all([
+    import(`${FIREBASE_SDK}/firebase-app.js`),
+    import(`${FIREBASE_SDK}/firebase-auth.js`),
+  ]);
+  const auth = authModule.getAuth(initializeApp(window.BEACON_FIREBASE_CONFIG));
+  const verifier = new authModule.RecaptchaVerifier(auth, 'recaptcha', { size: 'invisible' });
+  firebase = { auth, verifier, ...authModule };
+  return firebase;
+}
+
+const slotEl = (selector, slot) => form.querySelector(`${selector}[data-slot="${slot}"]`);
+
+function setOtpStatus(slot, message, kind = '') {
+  const status = slotEl('.otp-status', slot);
+  status.textContent = message;
+  status.className = `otp-status ${kind}`;
+}
+
+function resetOtp(slot) {
+  otp[slot] = { confirmation: null, verified: null };
+  mobileInputs[slot].closest('.field').classList.remove('is-verified');
+  slotEl('.otp-btn', slot).textContent = 'Send OTP';
+  slotEl('.otp-row', slot).hidden = true;
+  setOtpStatus(slot, '');
+}
+
+[1, 2].forEach((slot) => {
+  mobileInputs[slot].addEventListener('input', () => {
+    if (otp[slot].verified || otp[slot].confirmation) resetOtp(slot);
+  });
+  // The +91 is shown beside the box, so tidy a pasted "+91 98765 43210" to "98765 43210".
+  mobileInputs[slot].addEventListener('blur', () => {
+    const input = mobileInputs[slot];
+    if (isValidMobile(input.value)) input.value = formatMobile(input.value).slice(4);
+  });
+
+  slotEl('.otp-btn', slot).addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const value = mobileInputs[slot].value;
+    if (!isValidMobile(value)) {
+      setOtpStatus(slot, 'Enter a 10-digit mobile number starting with 6, 7, 8 or 9.', 'err');
+      return;
+    }
+    if (!OTP_ENABLED) {
+      setOtpStatus(slot, 'OTP is not switched on yet. The number will be saved as not verified.', 'err');
+      return;
+    }
+    button.disabled = true;
+    setOtpStatus(slot, 'Sending OTP…');
+    try {
+      const fb = await loadFirebase();
+      const phone = `+91${mobileDigits(value)}`;
+      otp[slot].confirmation = await fb.signInWithPhoneNumber(fb.auth, phone, fb.verifier);
+      slotEl('.otp-row', slot).hidden = false;
+      slotEl('.otp-row', slot).querySelector('input').focus();
+      button.textContent = 'Resend';
+      setOtpStatus(slot, `OTP sent to ${formatMobile(value)}.`);
+    } catch (error) {
+      setOtpStatus(slot, 'Could not send the OTP. Check the number and try again.', 'err');
+      console.error(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  slotEl('.verify-btn', slot).addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const code = slotEl('.otp-row', slot).querySelector('input').value.trim();
+    if (!/^\d{6}$/.test(code)) {
+      setOtpStatus(slot, 'Enter the 6-digit OTP from the SMS.', 'err');
+      return;
+    }
+    button.disabled = true;
+    try {
+      await otp[slot].confirmation.confirm(code);
+      await firebase.signOut(firebase.auth); // we only needed proof of the number
+      otp[slot].verified = formatMobile(mobileInputs[slot].value);
+      otp[slot].confirmation = null;
+      slotEl('.otp-row', slot).hidden = true;
+      mobileInputs[slot].closest('.field').classList.add('is-verified');
+      slotEl('.otp-btn', slot).textContent = 'Verified ✓';
+      setOtpStatus(slot, 'Number verified.', 'ok');
+      formError.textContent = '';
+    } catch (error) {
+      setOtpStatus(slot, 'That OTP is not right. Check the SMS and try again.', 'err');
+    } finally {
+      button.disabled = false;
+    }
+  });
+});
+
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   const name = nameInput.value.trim();
   const bus = parseInt(busSelect.value, 10) || 1;
-  const mobile1 = mobile1Input.value.trim();
-  const mobile2 = mobile2Input.value.trim();
+  const email = emailInput.value.trim();
 
   if (!name) return showError('Please enter the child\'s name.', nameInput);
-  if (!isValidMobile(mobile1)) return showError('Mobile number 1 should be 10 to 15 digits.', mobile1Input);
-  if (!isValidMobile(mobile2)) return showError('Mobile number 2 should be 10 to 15 digits.', mobile2Input);
+  if (!isValidMobile(mobile1Input.value)) return showError('Mother\'s mobile should be +91 and 10 digits starting with 6, 7, 8 or 9.', mobile1Input);
+  if (!isValidMobile(mobile2Input.value)) return showError('Father\'s mobile should be +91 and 10 digits starting with 6, 7, 8 or 9.', mobile2Input);
+  const mobile1 = formatMobile(mobile1Input.value);
+  const mobile2 = formatMobile(mobile2Input.value);
+  if (mobile1 === mobile2) return showError('Please enter two different mobile numbers.', mobile2Input);
+  if (!isValidEmail(email)) return showError('Please enter a valid email, like parent@example.com.', emailInput);
+  if (OTP_ENABLED && otp[1].verified !== mobile1) return showError('Verify the mother\'s mobile with OTP first.', mobile1Input);
+  if (OTP_ENABLED && otp[2].verified !== mobile2) return showError('Verify the father\'s mobile with OTP first.', mobile2Input);
 
-  state.children.push({ id: Date.now().toString(36), name, bus, mobile1, mobile2 });
+  state.children.push({
+    id: Date.now().toString(36), name, bus, mobile1, mobile2, email, verified: OTP_ENABLED,
+  });
   saveChildren();
   renderChildren();
+  renderTracker();
   form.reset();
+  resetOtp(1);
+  resetOtp(2);
   busSelect.value = String(bus); // keep the bus picked for the next child
   formError.textContent = '';
   nameInput.focus();
