@@ -156,6 +156,22 @@ button, input { font-family: inherit; }
 
 .leaflet-container { font-family: inherit; }
 
+/* "Sent you their location" alert over the map */
+.alert {
+  position: absolute; top: 8px; left: 24px; right: 24px; z-index: 600; display: flex; align-items: center; gap: 10px;
+  padding: 10px 10px 10px 12px; border-radius: 18px; background: var(--white); color: var(--black);
+  box-shadow: 0 14px 34px rgba(11, 27, 77, 0.4); border: 2px solid var(--lilac); animation: drop 0.3s ease-out;
+}
+@keyframes drop { from { transform: translateY(-12px); opacity: 0; } }
+.alert-icon { width: 34px; height: 34px; flex: none; border-radius: 11px; background: var(--navy); color: var(--lilac); display: flex; align-items: center; justify-content: center; }
+.alert-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.alert-text strong { font-size: 13px; }
+.alert-text span { font-size: 11px; color: var(--muted); }
+.alert-btn { border: none; cursor: pointer; padding: 8px 12px; border-radius: 10px; background: var(--lilac); color: var(--navy); font-size: 12px; font-weight: 800; }
+.alert-close { border: none; background: none; cursor: pointer; font-size: 20px; line-height: 1; color: var(--muted); padding: 4px 6px; }
+.family-tools { display: flex; align-items: center; gap: 10px; }
+.alerts-btn { border: none; cursor: pointer; padding: 5px 10px; border-radius: 999px; background: var(--lilac-soft); color: var(--navy); font-size: 11px; font-weight: 800; }
+
 @media (prefers-reduced-motion: reduce) {
   .blob, .kid-halo, .live-dot::before { animation: none; }
 }

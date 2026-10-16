@@ -19,6 +19,10 @@ const familyList = document.getElementById('family-list');
 const familyNote = document.getElementById('family-note');
 const liveDot = document.getElementById('live-dot');
 const recenterBtn = document.getElementById('recenter');
+const alertBox = document.getElementById('alert');
+const alertTitle = document.getElementById('alert-title');
+const alertSub = document.getElementById('alert-sub');
+const alertsBtn = document.getElementById('alerts-btn');
 
 let fb = null;
 let confirmation = null;
@@ -29,6 +33,9 @@ let selectedId = null;
 let map = null;
 let followAll = true;   // keep every child in view until the parent moves the map
 const markers = new Map();
+const seenPings = new Map(); // child id -> last pingAt already alerted
+let alertKid = null;
+const PING_FRESH_MS = 10 * 60 * 1000; // a Send older than this when the app opens is not news
 
 // ---------- Helpers ----------
 function mobileDigits(value) {
@@ -284,6 +291,52 @@ const READ_ERRORS = {
   'failed-precondition': 'The Firestore database has not been created yet. (failed-precondition)',
 };
 
+// ---------- "Sent you their location" alerts ----------
+function canNotify() {
+  return 'Notification' in window && Notification.permission === 'granted';
+}
+
+function renderAlertsBtn() {
+  alertsBtn.hidden = !('Notification' in window) || Notification.permission !== 'default';
+}
+
+alertsBtn.addEventListener('click', async () => {
+  try { await Notification.requestPermission(); } catch {}
+  renderAlertsBtn();
+});
+
+function showPing(kid) {
+  alertKid = kid.id;
+  const time = new Date(kid.pingAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  alertTitle.textContent = `${firstName(kid.name)} sent you their location`;
+  alertSub.textContent = `Bus No. ${kid.bus || 1} · ${time}`;
+  alertBox.hidden = false;
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  if (canNotify() && document.visibilityState !== 'visible') {
+    try {
+      const note = new Notification(`${firstName(kid.name)} sent you their location`, { body: `Bus No. ${kid.bus || 1} · ${time}`, tag: `ping-${kid.id}` });
+      note.onclick = () => { window.focus(); select(kid.id); note.close(); };
+    } catch {}
+  }
+}
+
+// Alert once per new Send. On the first load only a recent Send counts.
+function checkPings() {
+  kids.forEach((kid) => {
+    if (typeof kid.pingAt !== 'number') return;
+    const seen = seenPings.get(kid.id);
+    seenPings.set(kid.id, kid.pingAt);
+    const isNew = seen === undefined ? Date.now() - kid.pingAt < PING_FRESH_MS : kid.pingAt > seen;
+    if (isNew) showPing(kid);
+  });
+}
+
+document.getElementById('alert-view').addEventListener('click', () => {
+  alertBox.hidden = true;
+  if (alertKid) select(alertKid);
+});
+document.getElementById('alert-close').addEventListener('click', () => { alertBox.hidden = true; });
+
 function watchChildren() {
   const q = fb.query(fb.collection(fb.db, 'children'), fb.where('parents', 'array-contains', me));
   unsubscribe = fb.onSnapshot(q, (snap) => {
@@ -291,6 +344,7 @@ function watchChildren() {
     familyNote.classList.remove('err');
     renderList();
     renderMap();
+    checkPings();
   }, (error) => {
     console.error(error);
     familyNote.hidden = false;
@@ -327,6 +381,8 @@ async function start() {
     selectedId = null;
     markers.forEach((e) => { e.marker.remove(); e.circle.remove(); });
     markers.clear();
+    seenPings.clear();
+    alertBox.hidden = true;
     show(Boolean(me));
     if (!me) {
       confirmation = null;
@@ -338,6 +394,7 @@ async function start() {
     signOutBtn.textContent = `${formatMobile(me)} · Sign out`;
     if (ensureMap()) map.invalidateSize();
     familyNote.classList.remove('err');
+    renderAlertsBtn();
     renderList();
     watchChildren();
   });
