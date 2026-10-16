@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="navy">#0B1B4D</color>
+    <color name="lilac">#C9B8FF</color>
+    <style name="BeaconTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/navy</item>
+        <item name="android:navigationBarColor">#0A0A12</item>
+        <item name="android:windowBackground">@color/navy</item>
+        <item name="android:colorAccent">@color/lilac</item>
+    </style>
+</resources>
