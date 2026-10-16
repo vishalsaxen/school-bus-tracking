@@ -232,7 +232,6 @@ button, input { font-family: inherit; }
 .otp-status.err { color: var(--danger); }
 .field.is-verified .phone-row input { border-color: #1F9D6A; background: #F2FBF7; }
 .field.is-verified .otp-btn { background: #1F9D6A; color: var(--white); }
-.recaptcha:empty { display: none; }
 .verified-badge { color: #1F9D6A; font-weight: 800; }
 
 /* Bus count stepper */

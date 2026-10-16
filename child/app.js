@@ -375,9 +375,35 @@ async function loadFirebase() {
     import(`${FIREBASE_SDK}/firebase-auth.js`),
   ]);
   const auth = authModule.getAuth(initializeApp(window.BEACON_FIREBASE_CONFIG));
-  const verifier = new authModule.RecaptchaVerifier(auth, 'recaptcha', { size: 'invisible' });
-  firebase = { auth, verifier, ...authModule };
+  firebase = { auth, verifier: null, ...authModule };
   return firebase;
+}
+
+// A reCAPTCHA verifier can't be reused after a failed send, so make a fresh one each time.
+function freshVerifier(fb) {
+  if (fb.verifier) fb.verifier.clear();
+  document.getElementById('recaptcha').replaceChildren();
+  fb.verifier = new fb.RecaptchaVerifier(fb.auth, 'recaptcha', { size: 'invisible' });
+  return fb.verifier;
+}
+
+// Plain-language reasons for the Firebase errors parents are most likely to hit.
+const OTP_ERRORS = {
+  'auth/operation-not-allowed': 'Phone sign-in is not turned on in Firebase (Authentication > Sign-in method > Phone).',
+  'auth/billing-not-enabled': 'Firebase needs billing (Blaze plan) turned on before it can send SMS.',
+  'auth/unauthorized-domain': 'This website is not in Firebase Authorized domains yet.',
+  'auth/invalid-app-credential': 'Firebase could not check this browser (reCAPTCHA). Refresh the page and try again.',
+  'auth/captcha-check-failed': 'Firebase could not check this browser (reCAPTCHA). Refresh the page and try again.',
+  'auth/too-many-requests': 'Too many OTP attempts from this phone. Wait a while and try again.',
+  'auth/quota-exceeded': 'Today\'s SMS limit for this Firebase project is used up.',
+  'auth/invalid-phone-number': 'Firebase says this mobile number is not valid.',
+  'auth/network-request-failed': 'No internet connection. Check your network and try again.',
+};
+
+function otpErrorMessage(error) {
+  const code = error && error.code;
+  const reason = OTP_ERRORS[code] || 'Could not send the OTP.';
+  return code ? `${reason} (${code})` : reason;
 }
 
 const slotEl = (selector, slot) => form.querySelector(`${selector}[data-slot="${slot}"]`);
@@ -422,13 +448,13 @@ function resetOtp(slot) {
     try {
       const fb = await loadFirebase();
       const phone = `+91${mobileDigits(value)}`;
-      otp[slot].confirmation = await fb.signInWithPhoneNumber(fb.auth, phone, fb.verifier);
+      otp[slot].confirmation = await fb.signInWithPhoneNumber(fb.auth, phone, freshVerifier(fb));
       slotEl('.otp-row', slot).hidden = false;
       slotEl('.otp-row', slot).querySelector('input').focus();
       button.textContent = 'Resend';
       setOtpStatus(slot, `OTP sent to ${formatMobile(value)}.`);
     } catch (error) {
-      setOtpStatus(slot, 'Could not send the OTP. Check the number and try again.', 'err');
+      setOtpStatus(slot, otpErrorMessage(error), 'err');
       console.error(error);
     } finally {
       button.disabled = false;
