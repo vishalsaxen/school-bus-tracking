@@ -84,7 +84,9 @@ async function loadFirebase() {
     import(`${FIREBASE_SDK}/firebase-auth.js`),
     import(`${FIREBASE_SDK}/firebase-firestore.js`),
   ]);
-  const app = initializeApp(window.BEACON_FIREBASE_CONFIG);
+  // Its own app name, so the parent's sign-in is stored apart from Beacon Go's on the same
+  // site: testing both apps in one browser no longer signs the parent in as the child.
+  const app = initializeApp(window.BEACON_FIREBASE_CONFIG, 'beacon-parent');
   fb = { auth: auth.getAuth(app), db: store.getFirestore(app), verifier: null, ...auth, ...store };
   return fb;
 }
