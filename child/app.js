@@ -1,6 +1,7 @@
 // Beacon Go (child app).
-// Uses the phone's live GPS while sharing is on. With no backend yet, location reaches parents
-// by text: "Send" opens the messages app with their numbers and a map link.
+// Uses the phone's live GPS while sharing is on. Once this phone is linked to a child (OTP to the
+// child's mobile), each fix is saved to Firebase so the parent app (Beacon) shows it live.
+// "Send" still texts a map link to the parents as a fallback.
 // Child Details are kept in this browser's localStorage.
 
 const STORAGE_KEY = 'beacon-go.children';
@@ -14,6 +15,7 @@ const state = {
   geoError: null,   // 'unsupported' | 'denied' | 'unavailable'
   children: loadChildren(),
   busCount: loadBusCount(),
+  battery: null,    // 0-100 where the browser reports it
 };
 
 const frame = document.querySelector('.frame');
@@ -113,6 +115,7 @@ function startWatching() {
       state.position = position;
       state.geoError = null;
       renderTracker();
+      pushLive();
     },
     (error) => {
       state.geoError = error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable';
@@ -131,6 +134,8 @@ toggleBtn.addEventListener('click', () => {
   state.sharing = !state.sharing;
   if (state.sharing) startWatching(); else stopWatching();
   renderTracker();
+  pushLive(true); // tell parents right away that sharing paused or resumed
+  if (state.sharing) keepAwake(); else if (wakeLock) wakeLock.release().catch(() => {});
 });
 
 // Keep "Updated … ago" fresh between GPS fixes.
@@ -180,7 +185,10 @@ sendBtn.addEventListener('click', () => {
 // Show the real battery level where the browser supports it; keep the mockup value otherwise.
 if (navigator.getBattery) {
   navigator.getBattery().then((battery) => {
-    const show = () => { batteryValue.textContent = `${Math.round(battery.level * 100)}%`; };
+    const show = () => {
+      state.battery = Math.round(battery.level * 100);
+      batteryValue.textContent = `${state.battery}%`;
+    };
     show();
     battery.addEventListener('levelchange', show);
   }).catch(() => {});
@@ -193,6 +201,7 @@ const busSelect = document.getElementById('child-bus');
 const busCountEl = document.getElementById('bus-count');
 const busMinus = document.getElementById('bus-minus');
 const busPlus = document.getElementById('bus-plus');
+const childPhoneInput = document.getElementById('child-phone');
 const mobile1Input = document.getElementById('child-mobile1');
 const mobile2Input = document.getElementById('child-mobile2');
 const emailInput = document.getElementById('child-email');
@@ -307,7 +316,10 @@ function childItem(child) {
   name.textContent = child.name;
   const phones = document.createElement('div');
   phones.className = 'child-phones';
-  phones.textContent = `${child.mobile1} · ${child.mobile2}`;
+  phones.textContent = `Parents ${child.mobile1} · ${child.mobile2}`;
+  const own = document.createElement('div');
+  own.className = 'child-phones';
+  own.textContent = child.childMobile ? `Child's phone ${child.childMobile}` : 'Child\'s phone not added';
   const extra = document.createElement('div');
   extra.className = 'child-phones';
   extra.textContent = child.email || '';
@@ -315,7 +327,7 @@ function childItem(child) {
   badge.className = child.verified ? 'verified-badge' : '';
   badge.textContent = child.verified ? ' · OTP verified ✓' : ' · not verified';
   extra.append(badge);
-  meta.append(name, phones, extra);
+  meta.append(name, own, phones, extra);
 
   const remove = document.createElement('button');
   remove.type = 'button';
@@ -324,6 +336,7 @@ function childItem(child) {
   remove.setAttribute('aria-label', `Remove ${child.name}`);
   remove.addEventListener('click', () => {
     if (!confirm(`Remove ${child.name}? Use this when a child leaves the school.`)) return;
+    if (live.child && live.child.id === child.id) unlinkPhone();
     state.children = state.children.filter((c) => c.id !== child.id);
     saveChildren();
     renderChildren();
@@ -366,28 +379,46 @@ const OTP_ENABLED = Boolean(window.BEACON_FIREBASE_CONFIG?.apiKey && window.BEAC
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
 const mobileInputs = { 1: mobile1Input, 2: mobile2Input };
 const otp = { 1: { confirmation: null, verified: null }, 2: { confirmation: null, verified: null } };
-let firebase = null;
+let firebase = null;  // used only to check parent numbers, then signed out
+let liveFb = null;    // stays signed in as the child's number to send live location
+let sdk = null;
 
-async function loadFirebase() {
-  if (firebase) return firebase;
-  const [{ initializeApp }, authModule] = await Promise.all([
+function loadSdk() {
+  sdk = sdk || Promise.all([
     import(`${FIREBASE_SDK}/firebase-app.js`),
     import(`${FIREBASE_SDK}/firebase-auth.js`),
+    import(`${FIREBASE_SDK}/firebase-firestore.js`),
   ]);
-  const auth = authModule.getAuth(initializeApp(window.BEACON_FIREBASE_CONFIG));
+  return sdk;
+}
+
+// Parent numbers are checked on their own Firebase app, so verifying them never signs out
+// the child's live session on this phone.
+async function loadFirebase() {
+  if (firebase) return firebase;
+  const [{ initializeApp }, authModule] = await loadSdk();
+  const auth = authModule.getAuth(initializeApp(window.BEACON_FIREBASE_CONFIG, 'verify-parents'));
   firebase = { auth, verifier: null, ...authModule };
   return firebase;
 }
 
+async function loadLiveFirebase() {
+  if (liveFb) return liveFb;
+  const [{ initializeApp }, authModule, store] = await loadSdk();
+  const app = initializeApp(window.BEACON_FIREBASE_CONFIG);
+  liveFb = { auth: authModule.getAuth(app), db: store.getFirestore(app), verifier: null, ...authModule, ...store };
+  return liveFb;
+}
+
 // A reCAPTCHA verifier can't be reused after a failed send, so make a fresh one each time.
 // Each one gets its own new container, since reCAPTCHA refuses to render twice in one element.
-function freshVerifier(fb) {
+function freshVerifier(fb, holderId = 'recaptcha') {
   try {
     if (fb.verifier) fb.verifier.clear();
   } catch {
     // Already cleared or never rendered; a new one replaces it below.
   }
-  const holder = document.getElementById('recaptcha');
+  const holder = document.getElementById(holderId);
   const container = document.createElement('div');
   holder.replaceChildren(container);
   fb.verifier = new fb.RecaptchaVerifier(fb.auth, container, { size: 'invisible' });
@@ -499,6 +530,10 @@ function resetOtp(slot) {
   });
 });
 
+childPhoneInput.addEventListener('blur', () => {
+  if (isValidMobile(childPhoneInput.value)) childPhoneInput.value = formatMobile(childPhoneInput.value).slice(4);
+});
+
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   const name = nameInput.value.trim();
@@ -506,21 +541,27 @@ form.addEventListener('submit', (event) => {
   const email = emailInput.value.trim();
 
   if (!name) return showError('Please enter the child\'s name.', nameInput);
+  if (!isValidMobile(childPhoneInput.value)) return showError('Child\'s mobile should be +91 and 10 digits starting with 6, 7, 8 or 9.', childPhoneInput);
+  const childMobile = formatMobile(childPhoneInput.value);
   if (!isValidMobile(mobile1Input.value)) return showError('Mother\'s mobile should be +91 and 10 digits starting with 6, 7, 8 or 9.', mobile1Input);
   if (!isValidMobile(mobile2Input.value)) return showError('Father\'s mobile should be +91 and 10 digits starting with 6, 7, 8 or 9.', mobile2Input);
   const mobile1 = formatMobile(mobile1Input.value);
   const mobile2 = formatMobile(mobile2Input.value);
   if (mobile1 === mobile2) return showError('Please enter two different mobile numbers.', mobile2Input);
+  if (childMobile === mobile1 || childMobile === mobile2) return showError('The child\'s mobile should be different from the parents\' numbers.', childPhoneInput);
   if (!isValidEmail(email)) return showError('Please enter a valid email, like parent@example.com.', emailInput);
   if (OTP_ENABLED && otp[1].verified !== mobile1) return showError('Verify the mother\'s mobile with OTP first.', mobile1Input);
   if (OTP_ENABLED && otp[2].verified !== mobile2) return showError('Verify the father\'s mobile with OTP first.', mobile2Input);
 
   state.children.push({
-    id: Date.now().toString(36), name, bus, mobile1, mobile2, email, verified: OTP_ENABLED,
+    id: Date.now().toString(36), name, bus, childMobile, mobile1, mobile2, email, verified: OTP_ENABLED,
   });
   saveChildren();
   renderChildren();
   renderTracker();
+  if (!live.child) live.child = childForPhone(live.user?.phoneNumber);
+  renderLive();
+  pushLive(true);
   form.reset();
   resetOtp(1);
   resetOtp(2);
@@ -534,7 +575,204 @@ function showError(message, input) {
   input.focus();
 }
 
+// ---------- Live to parents (Firebase) ----------
+// This phone signs in with the child's own number (OTP) and keeps one document per child at
+// children/{child's +91 number}: name, bus, both parents' numbers and the latest location.
+// The parent app reads it live; firestore.rules lets only those two parents see it.
+const SEND_EVERY_MS = 10000;
+const liveRow = document.getElementById('live-row');
+const liveText = document.getElementById('live-text');
+const liveBtn = document.getElementById('live-btn');
+const linkDialog = document.getElementById('link-dialog');
+const linkOptions = document.getElementById('link-options');
+const linkOtp = document.getElementById('link-otp');
+const linkCode = document.getElementById('link-code');
+const linkVerify = document.getElementById('link-verify');
+const linkStatus = document.getElementById('link-status');
+
+const live = { user: null, child: null, lastTry: 0, sentAt: 0, error: null, confirmation: null };
+let wakeLock = null;
+
+const e164 = (mobile) => `+91${mobileDigits(mobile)}`;
+
+function childForPhone(phoneNumber) {
+  if (!phoneNumber) return null;
+  return state.children.find((c) => c.childMobile && e164(c.childMobile) === phoneNumber) || null;
+}
+
+const LIVE_ERRORS = {
+  'permission-denied': 'Blocked: publish the database rules',
+  'not-found': 'Create the Firestore database first',
+  'failed-precondition': 'Create the Firestore database first',
+  unavailable: 'Offline, will retry',
+};
+
+function renderLive() {
+  liveRow.hidden = !OTP_ENABLED;
+  const linked = Boolean(live.user);
+  liveBtn.textContent = linked ? 'Unlink' : 'Link phone';
+  liveBtn.classList.toggle('is-linked', linked);
+  let text = 'Off';
+  let kind = '';
+  if (linked && !live.child) {
+    text = `${formatMobile(live.user.phoneNumber)} isn't in Child Details`;
+    kind = 'err';
+  } else if (linked && live.error) {
+    text = LIVE_ERRORS[live.error.code] || `Not sent (${live.error.code || 'error'})`;
+    kind = 'err';
+  } else if (linked && !state.sharing) {
+    text = `${live.child.name.split(' ')[0]} · paused`;
+  } else if (linked && live.sentAt) {
+    text = `${live.child.name.split(' ')[0]} · sent ${timeAgo(live.sentAt)}`;
+    kind = 'ok';
+  } else if (linked) {
+    text = `${live.child.name.split(' ')[0]} · waiting for GPS`;
+  }
+  liveText.textContent = text;
+  liveText.className = `live-text ${kind}`;
+}
+
+async function pushLive(force = false) {
+  if (!live.user || !live.child || !state.position || !liveFb) return;
+  const now = Date.now();
+  if (!force && now - live.lastTry < SEND_EVERY_MS) return;
+  live.lastTry = now;
+  const { child } = live;
+  const { latitude, longitude, accuracy } = state.position.coords;
+  try {
+    await liveFb.setDoc(liveFb.doc(liveFb.db, 'children', live.user.phoneNumber), {
+      name: child.name,
+      bus: child.bus || 1,
+      parents: [e164(child.mobile1), e164(child.mobile2)],
+      sharing: state.sharing && !state.geoError,
+      location: { lat: latitude, lng: longitude, accuracy: Math.round(accuracy) },
+      fixAt: state.position.timestamp,
+      battery: state.battery,
+      updatedAt: liveFb.serverTimestamp(),
+    });
+    live.sentAt = Date.now();
+    live.error = null;
+  } catch (error) {
+    live.error = error;
+    console.error(error);
+  }
+  renderLive();
+}
+
+// While live, keep the screen awake: phones stop web-page GPS once the screen locks.
+async function keepAwake() {
+  const want = live.user && state.sharing && document.visibilityState === 'visible';
+  if (!want || !('wakeLock' in navigator)) return;
+  if (wakeLock && !wakeLock.released) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+  } catch {
+    // Not allowed right now (battery saver); GPS still runs while the page is on screen.
+  }
+}
+document.addEventListener('visibilitychange', keepAwake);
+
+async function unlinkPhone() {
+  if (!liveFb || !live.user) return;
+  try {
+    // Leave the parents a clear "sharing off" before this phone stops sending.
+    await liveFb.setDoc(liveFb.doc(liveFb.db, 'children', live.user.phoneNumber), { sharing: false, updatedAt: liveFb.serverTimestamp() }, { merge: true });
+  } catch {}
+  await liveFb.signOut(liveFb.auth);
+  if (wakeLock) wakeLock.release().catch(() => {});
+}
+
+function setLinkStatus(message, kind = '') {
+  linkStatus.textContent = message;
+  linkStatus.className = `otp-status ${kind}`;
+}
+
+function openLinkDialog() {
+  const ready = state.children.filter((c) => c.childMobile);
+  live.confirmation = null;
+  linkOtp.hidden = true;
+  linkCode.value = '';
+  setLinkStatus(ready.length ? '' : 'Add the child with their own mobile in Child Details first.', ready.length ? '' : 'err');
+  linkOptions.replaceChildren(...ready.map((child) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'sheet-option';
+    const name = document.createElement('strong');
+    name.textContent = child.name;
+    const phone = document.createElement('span');
+    phone.textContent = `${child.childMobile} · Bus No. ${child.bus || 1}`;
+    option.append(name, phone);
+    option.addEventListener('click', () => sendLinkOtp(child, option));
+    return option;
+  }));
+  linkDialog.showModal();
+}
+
+async function sendLinkOtp(child, option) {
+  linkOptions.querySelectorAll('button').forEach((b) => { b.disabled = true; b.classList.toggle('is-picked', b === option); });
+  setLinkStatus(`Sending OTP to ${child.childMobile}…`);
+  try {
+    const fb = await loadLiveFirebase();
+    live.confirmation = await fb.signInWithPhoneNumber(fb.auth, e164(child.childMobile), freshVerifier(fb, 'link-recaptcha'));
+    linkOtp.hidden = false;
+    linkCode.focus();
+    setLinkStatus(`OTP sent to ${child.childMobile}.`);
+  } catch (error) {
+    setLinkStatus(otpErrorMessage(error), 'err');
+    console.error(error);
+  } finally {
+    linkOptions.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+  }
+}
+
+linkVerify.addEventListener('click', async () => {
+  const code = linkCode.value.trim();
+  if (!/^\d{6}$/.test(code)) {
+    setLinkStatus('Enter the 6-digit OTP from the SMS.', 'err');
+    return;
+  }
+  linkVerify.disabled = true;
+  try {
+    await live.confirmation.confirm(code); // onAuthStateChanged takes it from here
+    linkDialog.close();
+  } catch {
+    setLinkStatus('That OTP is not right. Check the SMS and try again.', 'err');
+  } finally {
+    linkVerify.disabled = false;
+  }
+});
+
+liveBtn.addEventListener('click', () => {
+  if (!live.user) {
+    openLinkDialog();
+  } else if (confirm('Stop sending live location from this phone? Parents will see sharing as off.')) {
+    unlinkPhone();
+  }
+});
+
+async function startLive() {
+  renderLive();
+  if (!OTP_ENABLED) return;
+  try {
+    const fb = await loadLiveFirebase();
+    fb.onAuthStateChanged(fb.auth, (user) => {
+      live.user = user;
+      live.child = childForPhone(user?.phoneNumber);
+      live.sentAt = 0;
+      live.error = null;
+      renderLive();
+      keepAwake();
+      pushLive(true);
+    });
+  } catch (error) {
+    console.error(error); // offline or SDK blocked; the rest of the app still works
+  }
+}
+
+setInterval(renderLive, 10000);
+
 state.busCount = Math.max(state.busCount, minBusCount());
 startWatching();
 renderTracker();
 renderChildren();
+startLive();

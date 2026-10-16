@@ -1,0 +1,25 @@
+rules_version = '2';
+
+// Paste this into Firebase console > Firestore Database > Rules, then Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // One document per child, named by the child's own mobile (+91…).
+    // Written only by the child's phone, which signs in with that number by OTP.
+    // Read only by that phone and the two parent numbers listed in it.
+    match /children/{childPhone} {
+      allow create, update: if request.auth != null
+        && request.auth.token.phone_number == childPhone
+        && request.resource.data.parents is list
+        && request.resource.data.parents.size() <= 2;
+      allow delete: if request.auth != null
+        && request.auth.token.phone_number == childPhone;
+
+      allow get: if request.auth != null && (
+        request.auth.token.phone_number == childPhone
+        || request.auth.token.phone_number in resource.data.parents);
+      allow list: if request.auth != null
+        && request.auth.token.phone_number in resource.data.parents;
+    }
+  }
+}

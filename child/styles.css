@@ -271,3 +271,21 @@ button, input { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .blob, .ring-bg, .pulse, .child-item, .bus-body, .wheel, .road-dash, .eyelid, .headlight { animation: none; }
 }
+
+/* Live to parents (Firebase) */
+.info-row[hidden] { display: none; }
+.live-text { font-size: 12px; font-weight: 700; color: var(--muted); max-width: 150px; text-align: right; }
+.live-text.ok { color: #1F9D6A; }
+.live-text.err { color: var(--danger); }
+.link-btn {
+  flex: none; border: none; cursor: pointer; padding: 7px 12px; border-radius: 10px;
+  background: var(--navy); color: var(--lilac); font-size: 12px; font-weight: 800;
+}
+.link-btn.is-linked { background: var(--lilac-soft); color: var(--navy); }
+.field-hint { margin: 0; font-size: 11px; font-weight: 500; color: var(--muted); }
+.link-otp { margin-top: 12px; }
+.link-otp input { padding: 12px 14px; }
+.sheet .otp-status { margin-top: 8px; }
+button.sheet-option { width: 100%; text-align: left; cursor: pointer; font-family: inherit; }
+button.sheet-option:disabled { opacity: 0.5; cursor: wait; }
+button.sheet-option.is-picked { border-color: #8E6BFF; background: var(--lilac-soft); }

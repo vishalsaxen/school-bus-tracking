@@ -1,4 +1,4 @@
-// Firebase web config for sending real OTP SMS to parent mobiles (project school-bus-tracking-9a46e).
+// Firebase web config for OTP sign-in and live location (project school-bus-tracking-9a46e).
 // From Firebase console > Project settings > Your apps > Web app.
 // These values are public identifiers, not secrets; access is controlled by Firebase's
 // authorized domains and sign-in settings.
