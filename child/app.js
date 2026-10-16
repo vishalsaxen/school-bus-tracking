@@ -362,7 +362,7 @@ function renderChildren() {
 // ---------- OTP for parent mobiles ----------
 // Real SMS OTP goes through Firebase Phone Auth once firebase-config.js is filled in.
 // Without it, OTP is off and numbers are saved as "not verified".
-const OTP_ENABLED = Boolean(window.BEACON_FIREBASE_CONFIG);
+const OTP_ENABLED = Boolean(window.BEACON_FIREBASE_CONFIG?.apiKey && window.BEACON_FIREBASE_CONFIG?.appId);
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
 const mobileInputs = { 1: mobile1Input, 2: mobile2Input };
 const otp = { 1: { confirmation: null, verified: null }, 2: { confirmation: null, verified: null } };
