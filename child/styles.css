@@ -305,3 +305,6 @@ button.sheet-option.is-picked { border-color: #8E6BFF; background: var(--lilac-s
 .toast.ok { background: #1F9D6A; }
 .toast.err { background: var(--danger); }
 .toast[hidden] { display: none; }
+
+.get-app { margin-top: -6px; font-size: 11px; font-weight: 700; color: var(--navy); background: var(--lilac-soft); padding: 6px 12px; border-radius: 999px; text-decoration: none; }
+.get-app[hidden] { display: none; }

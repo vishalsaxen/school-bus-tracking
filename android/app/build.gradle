@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.github.vishalsaxen.beacongo'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'io.github.vishalsaxen.beacongo'
+        minSdk 26
+        targetSdk 34
+        // CI sets BUILD_NUMBER so every new APK installs over the last one.
+        versionCode (System.getenv('BUILD_NUMBER') ?: '1') as int
+        versionName "1.0.${System.getenv('BUILD_NUMBER') ?: '0'}"
+    }
+
+    signingConfigs {
+        // One fixed key so each new APK can update the one already installed.
+        // This is a family app installed by link, not a Play Store app.
+        beacon {
+            storeFile file('beacon-go.keystore')
+            storePassword 'beacon-go'
+            keyAlias 'beacon-go'
+            keyPassword 'beacon-go'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.beacon
+        }
+        debug {
+            signingConfig signingConfigs.beacon
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

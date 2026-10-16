@@ -1,6 +1,7 @@
 // Beacon Go (child app).
 // Uses the phone's live GPS while sharing is on. Once this phone is linked to a child (OTP to the
 // child's mobile), each fix is saved to Firebase so the parent app (Beacon) shows it live.
+// In the Android app (android/), a background service keeps sending with the screen locked.
 // "Send" pushes the location now and alerts the parents in Beacon; an unlinked phone can still text a map link.
 // Child Details are kept in this browser's localStorage.
 
@@ -136,6 +137,7 @@ toggleBtn.addEventListener('click', () => {
   renderTracker();
   pushLive(true); // tell parents right away that sharing paused or resumed
   if (state.sharing) keepAwake(); else if (wakeLock) wakeLock.release().catch(() => {});
+  syncAndroid();
 });
 
 // Keep "Updated … ago" fresh between GPS fixes.
@@ -585,6 +587,7 @@ form.addEventListener('submit', (event) => {
   if (!live.child) live.child = childForPhone(live.user?.phoneNumber);
   renderLive();
   pushLive(true);
+  syncAndroid();
   form.reset();
   resetOtp(1);
   resetOtp(2);
@@ -777,6 +780,32 @@ liveBtn.addEventListener('click', () => {
   }
 });
 
+// In the Android app, hand the signed-in child to the app's background service, which keeps
+// sending location with the screen locked (a web page can't).
+const androidApp = window.BeaconAndroid || null;
+
+function syncAndroid() {
+  if (!androidApp) return;
+  if (live.user && live.child && state.sharing) {
+    const cfg = window.BEACON_FIREBASE_CONFIG;
+    androidApp.startTracking(JSON.stringify({
+      apiKey: cfg.apiKey,
+      projectId: cfg.projectId,
+      docId: live.user.phoneNumber,
+      refreshToken: live.user.refreshToken,
+      name: live.child.name,
+      bus: live.child.bus || 1,
+      parents: [e164(live.child.mobile1), e164(live.child.mobile2)],
+    }));
+  } else {
+    androidApp.stopTracking();
+  }
+}
+
+// On an Android phone in the browser, point to the app so sharing survives a locked screen.
+const getApp = document.getElementById('get-app');
+getApp.hidden = Boolean(androidApp) || !/Android/i.test(navigator.userAgent);
+
 async function startLive() {
   renderLive();
   if (!OTP_ENABLED) return;
@@ -790,6 +819,7 @@ async function startLive() {
       renderLive();
       keepAwake();
       pushLive(true);
+      syncAndroid();
     });
   } catch (error) {
     console.error(error); // offline or SDK blocked; the rest of the app still works

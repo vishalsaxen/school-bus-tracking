@@ -20,7 +20,14 @@ Live sites (GitHub Pages from `main`):
 4. Either parent opens Beacon, signs in with their own mobile, and sees the child live on the map.
 5. When the child taps **Send**, the location goes out at once and parents get a "sent you their location" alert in Beacon (a phone notification too if they turn on alerts and the page is in the background).
 
-The page has to stay open on the child's phone (it keeps the screen awake while live); phones stop GPS for web pages in the background.
+In a phone browser the page has to stay open, because phones stop GPS for web pages once the screen locks. For real use, install the **Beacon Go Android app** on the child's phone: it shows the same child page, and a background service keeps sending the location every ~15 seconds with the screen locked (a "Sharing location with parents" notification shows while it runs).
+
+## Android app (`android/`)
+
+- Download: https://github.com/vishalsaxen/school-bus-tracking/releases/latest/download/beacon-go.apk (open on the child's phone, allow installing from this source).
+- Built by GitHub Actions (`.github/workflows/android.yml`) on every change to `android/`; pushes to `main` publish a new release.
+- The app is a WebView of `child/` plus a foreground location service. The page hands the signed-in child's Firebase session to the service through `window.BeaconAndroid`, and the service writes the same `children/{number}` document through the Firestore REST API, so the parent app and `firestore.rules` need no changes.
+- `android/app/beacon-go.keystore` signs every build with the same key so new versions install over old ones.
 
 ## One-time Firebase setup
 
