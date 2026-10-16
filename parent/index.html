@@ -48,6 +48,12 @@
 
     <!-- Live map + family list -->
     <section id="home" class="home" hidden>
+      <div id="alert" class="alert" role="alert" hidden>
+        <div class="alert-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/></svg></div>
+        <div class="alert-text"><strong id="alert-title"></strong><span id="alert-sub"></span></div>
+        <button id="alert-view" class="alert-btn" type="button">View</button>
+        <button id="alert-close" class="alert-close" type="button" aria-label="Dismiss">×</button>
+      </div>
       <div class="map-card">
         <div id="map" class="map" aria-label="Live map of your children"></div>
         <button id="recenter" class="recenter" type="button" aria-label="Show all children on the map">
@@ -57,7 +63,10 @@
       <div class="family">
         <div class="family-head">
           <span>Family</span>
-          <span id="live-dot" class="live-dot">Live</span>
+          <span class="family-tools">
+            <button id="alerts-btn" class="alerts-btn" type="button" hidden>Turn on alerts</button>
+            <span id="live-dot" class="live-dot">Live</span>
+          </span>
         </div>
         <ul id="family-list" class="family-list"></ul>
         <p id="family-note" class="family-note" hidden></p>

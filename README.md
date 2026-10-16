@@ -18,6 +18,7 @@ Live sites (GitHub Pages from `main`):
 2. On the child's phone, tap **Link phone** on the Tracker tab, pick the child and enter the OTP sent to the child's mobile.
 3. From then on the phone saves its location to Firebase (Cloud Firestore) about every 10 seconds while sharing is on, at `children/{child's +91 number}`.
 4. Either parent opens Beacon, signs in with their own mobile, and sees the child live on the map.
+5. When the child taps **Send**, the location goes out at once and parents get a "sent you their location" alert in Beacon (a phone notification too if they turn on alerts and the page is in the background).
 
 The page has to stay open on the child's phone (it keeps the screen awake while live); phones stop GPS for web pages in the background.
 

@@ -203,12 +203,16 @@
 
     <dialog id="send-dialog" class="sheet">
       <form method="dialog">
-        <h2 class="sheet-title">Send my location to…</h2>
-        <p class="sheet-sub">Opens your messages app with your parents' numbers and a map link. Tap send there.</p>
+        <h2 class="sheet-title">Send my location to parents</h2>
+        <p class="sheet-sub">Link this phone once and Send reaches your parents straight away in their Beacon app.</p>
+        <button id="send-link" class="sheet-primary" type="button">Link this phone</button>
+        <p class="sheet-or">or text a map link from your messages app</p>
         <div id="send-options" class="sheet-options"></div>
         <button class="sheet-cancel" value="cancel">Cancel</button>
       </form>
     </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
     <nav class="tabbar" role="tablist">
       <button id="tab-tracker" class="tab is-active" role="tab" aria-selected="true" aria-controls="panel-tracker" data-panel="panel-tracker" type="button">

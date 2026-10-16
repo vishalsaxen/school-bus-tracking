@@ -1,7 +1,7 @@
 // Beacon Go (child app).
 // Uses the phone's live GPS while sharing is on. Once this phone is linked to a child (OTP to the
 // child's mobile), each fix is saved to Firebase so the parent app (Beacon) shows it live.
-// "Send" still texts a map link to the parents as a fallback.
+// "Send" pushes the location now and alerts the parents in Beacon; an unlinked phone can still text a map link.
 // Child Details are kept in this browser's localStorage.
 
 const STORAGE_KEY = 'beacon-go.children';
@@ -155,18 +155,36 @@ function messageFor(child) {
   return `${child.name} is here (Bus No. ${child.bus || 1}), updated ${new Date(state.position.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: ${link}`;
 }
 
-sendBtn.addEventListener('click', () => {
+const toast = document.getElementById('toast');
+let toastTimer = null;
+
+function showToast(message, kind = '') {
+  toast.textContent = message;
+  toast.className = `toast ${kind}`;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, 4000);
+}
+
+// Send: on a linked phone, push the location to Beacon now and flag it so parents get an alert.
+// Otherwise offer to link the phone, or text a map link as before.
+sendBtn.addEventListener('click', async () => {
   if (!state.position) return;
   if (state.children.length === 0) {
     alert('Add your name and your parents\' mobile numbers in Child Details first.');
     document.getElementById('tab-children').click();
     return;
   }
-  if (state.children.length === 1) {
-    const [child] = state.children;
-    window.location.href = smsUrl([child.mobile1, child.mobile2], messageFor(child));
+  if (live.user && live.child) {
+    sendBtn.disabled = true;
+    await pushLive(true, true);
+    sendBtn.disabled = false;
+    if (live.error) showToast(`Not sent: ${LIVE_ERRORS[live.error.code] || live.error.code || 'try again'}`, 'err');
+    else showToast(`Sent ✓ ${firstNameOf(live.child.name)}'s parents can see it in Beacon now`, 'ok');
     return;
   }
+  document.getElementById('send-link').hidden = !OTP_ENABLED;
+  sendDialog.querySelector('.sheet-or').hidden = !OTP_ENABLED;
   sendOptions.replaceChildren(...state.children.map((child) => {
     const option = document.createElement('a');
     option.className = 'sheet-option';
@@ -180,6 +198,11 @@ sendBtn.addEventListener('click', () => {
     return option;
   }));
   sendDialog.showModal();
+});
+
+document.getElementById('send-link').addEventListener('click', () => {
+  sendDialog.close();
+  openLinkDialog();
 });
 
 // Show the real battery level where the browser supports it; keep the mockup value otherwise.
@@ -632,7 +655,10 @@ function renderLive() {
   liveText.className = `live-text ${kind}`;
 }
 
-async function pushLive(force = false) {
+const firstNameOf = (name) => name.trim().split(/\s+/)[0];
+
+// ping: the child tapped Send, so parents get an alert as well as the map update.
+async function pushLive(force = false, ping = false) {
   if (!live.user || !live.child || !state.position || !liveFb) return;
   const now = Date.now();
   if (!force && now - live.lastTry < SEND_EVERY_MS) return;
@@ -649,7 +675,8 @@ async function pushLive(force = false) {
       fixAt: state.position.timestamp,
       battery: state.battery,
       updatedAt: liveFb.serverTimestamp(),
-    });
+      ...(ping ? { pingAt: Date.now() } : {}),
+    }, { merge: true }); // merge keeps the last pingAt between regular updates
     live.sentAt = Date.now();
     live.error = null;
   } catch (error) {
