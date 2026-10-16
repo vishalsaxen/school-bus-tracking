@@ -11,7 +11,7 @@ android {
         minSdk 26
         targetSdk 34
         // CI sets BUILD_NUMBER so every new APK installs over the last one.
-        versionCode (System.getenv('BUILD_NUMBER') ?: '1') as int
+        versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
         versionName "1.0.${System.getenv('BUILD_NUMBER') ?: '0'}"
     }
 
