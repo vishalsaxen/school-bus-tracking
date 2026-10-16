@@ -380,10 +380,17 @@ async function loadFirebase() {
 }
 
 // A reCAPTCHA verifier can't be reused after a failed send, so make a fresh one each time.
+// Each one gets its own new container, since reCAPTCHA refuses to render twice in one element.
 function freshVerifier(fb) {
-  if (fb.verifier) fb.verifier.clear();
-  document.getElementById('recaptcha').replaceChildren();
-  fb.verifier = new fb.RecaptchaVerifier(fb.auth, 'recaptcha', { size: 'invisible' });
+  try {
+    if (fb.verifier) fb.verifier.clear();
+  } catch {
+    // Already cleared or never rendered; a new one replaces it below.
+  }
+  const holder = document.getElementById('recaptcha');
+  const container = document.createElement('div');
+  holder.replaceChildren(container);
+  fb.verifier = new fb.RecaptchaVerifier(fb.auth, container, { size: 'invisible' });
   return fb.verifier;
 }
 
@@ -402,8 +409,8 @@ const OTP_ERRORS = {
 
 function otpErrorMessage(error) {
   const code = error && error.code;
-  const reason = OTP_ERRORS[code] || 'Could not send the OTP.';
-  return code ? `${reason} (${code})` : reason;
+  if (code) return `${OTP_ERRORS[code] || 'Could not send the OTP.'} (${code})`;
+  return `Could not send the OTP.${error && error.message ? ` (${error.message})` : ''}`;
 }
 
 const slotEl = (selector, slot) => form.querySelector(`${selector}[data-slot="${slot}"]`);
@@ -437,6 +444,11 @@ function resetOtp(slot) {
     const value = mobileInputs[slot].value;
     if (!isValidMobile(value)) {
       setOtpStatus(slot, 'Enter a 10-digit mobile number starting with 6, 7, 8 or 9.', 'err');
+      return;
+    }
+    const other = slot === 1 ? 2 : 1;
+    if (isValidMobile(mobileInputs[other].value) && mobileDigits(mobileInputs[other].value) === mobileDigits(value)) {
+      setOtpStatus(slot, 'Use a different number from the other parent.', 'err');
       return;
     }
     if (!OTP_ENABLED) {
