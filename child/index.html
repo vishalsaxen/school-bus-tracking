@@ -99,13 +99,20 @@
           </div>
           <span class="info-value"><span id="bus-chip" class="chip">Bus No. 1</span> Parents</span>
         </div>
+        <div id="live-row" class="info-row" hidden>
+          <div class="info-label">
+            <span class="info-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg></span>
+            <span>Live to parents</span>
+          </div>
+          <span class="info-value"><span id="live-text" class="live-text">Off</span><button id="live-btn" class="link-btn" type="button">Link phone</button></span>
+        </div>
       </div>
     </section>
 
     <!-- Child Details tab -->
     <section id="panel-children" class="panel" role="tabpanel" aria-labelledby="tab-children" hidden>
       <h1 class="panel-title">Child Details</h1>
-      <p class="panel-sub">Add each child with their bus, both parents' mobiles (verified by OTP) and an email.</p>
+      <p class="panel-sub">Add each child with their bus, their own mobile, both parents' mobiles (verified by OTP) and an email.</p>
 
       <div class="card bus-count">
         <div>
@@ -128,6 +135,14 @@
           <span>Bus</span>
           <select id="child-bus" name="bus"></select>
         </label>
+        <div class="field">
+          <label for="child-phone">Child's mobile (with internet)</label>
+          <div class="phone-row">
+            <span class="prefix">+91</span>
+            <input id="child-phone" name="childPhone" type="tel" inputmode="numeric" maxlength="16" placeholder="99887 76655" required>
+          </div>
+          <p class="field-hint">The phone your child carries. Link it on the Tracker tab to send live location to both parents.</p>
+        </div>
         <div class="field">
           <label for="child-mobile1">Mother's mobile</label>
           <div class="phone-row">
@@ -170,6 +185,21 @@
       <div id="child-list" class="child-groups"></div>
       <p id="empty-state" class="empty">No children added yet.</p>
     </section>
+
+    <dialog id="link-dialog" class="sheet">
+      <form method="dialog">
+        <h2 class="sheet-title">Link this phone</h2>
+        <p class="sheet-sub">Pick the child who carries this phone. An OTP goes to their mobile, and then this phone sends live location to both parents.</p>
+        <div id="link-options" class="sheet-options"></div>
+        <div id="link-otp" class="otp-row link-otp" hidden>
+          <input id="link-code" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" aria-label="OTP sent to the child's mobile">
+          <button id="link-verify" class="verify-btn" type="button">Verify</button>
+        </div>
+        <p id="link-status" class="otp-status" aria-live="polite"></p>
+        <div id="link-recaptcha" class="recaptcha"></div>
+        <button class="sheet-cancel" value="cancel">Cancel</button>
+      </form>
+    </dialog>
 
     <dialog id="send-dialog" class="sheet">
       <form method="dialog">
