@@ -648,10 +648,11 @@ $('school-form').addEventListener('submit', async (event) => {
   const val = (id) => $(id).value.trim();
   const info = { website: val('school-website'), instagram: val('school-instagram'), facebook: val('school-facebook'), emergency: val('school-emergency') };
   const links = B.schoolLinks(info);
-  if (info.website && !links.website) { err.textContent = 'Enter the website like greenvalleyschool.in.'; return $('school-website').focus(); }
-  if (info.instagram && !links.instagram) { err.textContent = 'Enter the Instagram handle like @greenvalleyschool, or an instagram.com link.'; return $('school-instagram').focus(); }
-  if (info.facebook && !links.facebook) { err.textContent = 'Enter the Facebook page name, or a facebook.com link.'; return $('school-facebook').focus(); }
-  if (info.emergency && !links.emergency) { err.textContent = 'Enter the emergency number with digits only, like 98765 43210.'; return $('school-emergency').focus(); }
+  const fail = (text, id) => { err.textContent = text; B.toast(text, 'err'); $(id).focus(); };
+  if (info.website && !links.website) return fail('Enter the website like greenvalleyschool.in.', 'school-website');
+  if (info.instagram && !links.instagram) return fail('Enter the Instagram handle like @greenvalleyschool, or an instagram.com link.', 'school-instagram');
+  if (info.facebook && !links.facebook) return fail('Enter the Facebook page name, or a facebook.com link.', 'school-facebook');
+  if (info.emergency && !links.emergency) return fail('Enter the emergency number with digits only, like 98765 43210.', 'school-emergency');
   const ok = await saveRoute({ school: val('school-name-input'), schoolInfo: info });
   if (ok) { schoolFormDirty = false; B.toast('School details saved. Guardians can see them now.', 'ok'); }
 });

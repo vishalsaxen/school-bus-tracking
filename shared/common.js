@@ -407,7 +407,11 @@
       return url && new URL(url).hostname.replace(/^(www\.|m\.)/, '').endsWith(host) ? url : '';
     }
     const handle = t.replace(/^@/, '');
-    return /^[A-Za-z0-9._-]{1,60}$/.test(handle) ? `https://${host}/${handle}` : '';
+    if (/^[A-Za-z0-9._-]{1,60}$/.test(handle)) return `https://${host}/${handle}`;
+    // A page name like "Green Valley School" isn't a handle, so open a search for it instead.
+    if (t.length > 120) return '';
+    const q = encodeURIComponent(t);
+    return host === 'facebook.com' ? `https://www.facebook.com/search/top/?q=${q}` : `https://www.instagram.com/explore/search/keyword/?q=${q}`;
   }
   // Emergency lines can be landlines or short codes like 112, so only check the shape.
   function phoneHref(text) {
