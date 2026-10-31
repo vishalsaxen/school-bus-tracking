@@ -1,8 +1,8 @@
-// Firebase web config for OTP sign-in and live location (project school-bus-tracking-9a46e).
+// Firebase web config (project school-bus-tracking-9a46e), shared by Bus Captain and Guardians.
 // From Firebase console > Project settings > Your apps > Web app.
 // These values are public identifiers, not secrets; access is controlled by Firebase's
-// authorized domains and sign-in settings.
-window.BEACON_FIREBASE_CONFIG = {
+// authorized domains, phone sign-in and the rules in firestore.rules.
+window.BUS_FIREBASE_CONFIG = {
   apiKey: 'AIzaSyCvkhaH7iJ2jp7fQeBDODzkwZ4YYFAr2k0',
   authDomain: 'school-bus-tracking-9a46e.firebaseapp.com',
   projectId: 'school-bus-tracking-9a46e',

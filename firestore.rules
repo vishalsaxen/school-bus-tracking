@@ -1,25 +1,65 @@
 rules_version = '2';
 
 // Paste this into Firebase console > Firestore Database > Rules, then Publish.
+// Everyone signs in with their mobile number by OTP (Firebase phone auth).
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // One document per child, named by the child's own mobile (+91…).
-    // Written only by the child's phone, which signs in with that number by OTP.
-    // Read only by that phone and the two parent numbers listed in it.
-    match /children/{childPhone} {
-      allow create, update: if request.auth != null
-        && request.auth.token.phone_number == childPhone
-        && request.resource.data.parents is list
-        && request.resource.data.parents.size() <= 2;
-      allow delete: if request.auth != null
-        && request.auth.token.phone_number == childPhone;
+    function signedIn() {
+      return request.auth != null && request.auth.token.phone_number != null;
+    }
+    function me() {
+      return request.auth.token.phone_number;
+    }
 
-      allow get: if request.auth != null && (
-        request.auth.token.phone_number == childPhone
-        || request.auth.token.phone_number in resource.data.parents);
-      allow list: if request.auth != null
-        && request.auth.token.phone_number in resource.data.parents;
+    // One route per Bus Captain, named by the Bus Captain's mobile (+91…).
+    // Holds the school, route name, bus number, monthly fee, UPI ID, stops, trip and live location,
+    // plus `guardians`: every guardian mobile on the route, which decides who may open it.
+    match /routes/{captain} {
+      function isCaptain() {
+        return signedIn() && me() == captain;
+      }
+      function onRoute() {
+        return signedIn() && me() in get(/databases/$(database)/documents/routes/$(captain)).data.guardians;
+      }
+      // A guardian may only file something for a child whose family list includes them.
+      function fromFamily() {
+        return request.resource.data.by == me() && request.resource.data.family is list && me() in request.resource.data.family;
+      }
+
+      allow create, update: if isCaptain()
+        && request.resource.data.guardians is list
+        && request.resource.data.guardians.size() <= 300;
+      allow delete: if isCaptain();
+      allow get: if isCaptain() || (signedIn() && me() in resource.data.guardians);
+      allow list: if signedIn() && me() in resource.data.guardians;
+
+      // Students, each with `family`: the guardian mobiles allowed to see that child.
+      match /students/{id} {
+        allow read: if isCaptain() || (signedIn() && me() in resource.data.family);
+        allow write: if isCaptain();
+      }
+
+      // "Child not going" alerts from guardians to the Bus Captain.
+      match /notices/{id} {
+        allow create: if onRoute() && fromFamily();
+        allow read: if isCaptain() || (signedIn() && me() in resource.data.family);
+        allow delete: if isCaptain() || (signedIn() && me() in resource.data.family);
+      }
+
+      // Fee payments a guardian made by UPI. The guardian records it; only the Bus Captain can
+      // mark it received or not received.
+      match /payments/{id} {
+        allow create: if onRoute() && fromFamily()
+          && request.resource.data.status == 'reported'
+          && request.resource.data.months is list
+          && request.resource.data.months.size() > 0
+          && request.resource.data.amount is number;
+        allow read: if isCaptain() || (signedIn() && me() in resource.data.family);
+        allow update: if isCaptain()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'checkedAt'])
+          && request.resource.data.status in ['received', 'rejected'];
+      }
     }
   }
 }
