@@ -17,11 +17,12 @@ Live sites (GitHub Pages from `main`):
 
 1. The Bus Captain opens Bus Captain, signs in with their mobile (OTP), and fills in **Route, fees and UPI**. Fees are per route, so each Bus Captain sets their own route's monthly fee.
 2. On the **Stops** tab they add each stop while standing at it (or add it and drag it on the map).
-3. On the **Students** tab they add each child with a stop and one or two guardian mobiles.
-4. Each guardian opens Guardians and signs in by OTP with that mobile. Only numbers the Bus Captain added can open the route.
-5. While the Bus Captain shares, guardians see the bus on the map, the next stop and minutes to their own stop. **Honk** sends guardians an alert.
-6. **Fees:** the guardian ticks one or more months, the **Pay fee** button turns on with the total (months × the route's fee) and opens their UPI app (Google Pay, PhonePe, Paytm, BHIM) to the route's UPI ID. Back in the app they confirm it went through (with the UPI reference if they like). In the **Guardians Android app** the UPI app reports back on its own: on success the months fade to Paid and the Bus Captain gets "*Student* submitted fees of ₹… for *months YYYY*" straight away. In a browser the guardian taps "Yes, I paid" instead. The Bus Captain sees it under **Alerts** (and as a phone notification) and can mark it **Received** or **Not received**. There is no payment gateway, so the success comes from the guardian's UPI app, not the bank; the Bus Captain should still check the money arrived.
-7. **Not Going:** the guardian picks the child, the day (today, tomorrow or a date) and pickup, drop or both. The Bus Captain gets it under **Alerts**, and the child is tagged "Not going today".
+3. On the **School** tab they can add the school's name, website, Instagram, Facebook and emergency number. Guardians see these in their own **School** tab, with buttons to open the links and call the emergency number.
+4. On the **Students** tab they add each child with a stop and one or two guardian mobiles.
+5. Each guardian opens Guardians and signs in by OTP with that mobile. Only numbers the Bus Captain added can open the route.
+6. While the Bus Captain shares, guardians see the bus on the map, the next stop and minutes to their own stop. **Honk** sends guardians an alert.
+7. **Fees:** the guardian ticks one or more months, the **Pay fee** button turns on with the total (months × the route's fee) and opens their UPI app (Google Pay, PhonePe, Paytm, BHIM) to the route's UPI ID. Back in the app they confirm it went through (with the UPI reference if they like). In the **Guardians Android app** the UPI app reports back on its own: on success the months fade to Paid and the Bus Captain gets "*Student* submitted fees of ₹… for *months YYYY*" straight away. In a browser the guardian taps "Yes, I paid" instead. The Bus Captain sees it under **Alerts** (and as a phone notification) and can mark it **Received** or **Not received**. There is no payment gateway, so the success comes from the guardian's UPI app, not the bank; the Bus Captain should still check the money arrived.
+8. **Not Going:** the guardian picks the child, the day (today, tomorrow or a date) and pickup, drop or both. The Bus Captain gets it under **Alerts**, and the child is tagged "Not going today".
 
 ## Guardians Android app (lock-screen alerts)
 
@@ -37,7 +38,7 @@ Live sites (GitHub Pages from `main`):
 
 ## Data (Cloud Firestore)
 
-- `routes/{Bus Captain's +91 number}`: school, route name, bus number, fee, UPI ID, stops, trip, live location, and `guardians` (who may open the route).
+- `routes/{Bus Captain's +91 number}`: school, `schoolInfo` (website, instagram, facebook, emergency), route name, bus number, fee, UPI ID, stops, trip, live location, and `guardians` (who may open the route).
 - `routes/{…}/students/{id}`: child's name, stop and `family` (their guardians' mobiles).
 - `routes/{…}/notices/{id}`: "Child not going" alerts.
 - `routes/{…}/payments/{id}`: fee payments reported by guardians, with the Bus Captain's received / not received.

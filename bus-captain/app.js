@@ -625,10 +625,42 @@ $('settings-form').addEventListener('submit', async (event) => {
   if (ok) { $('settings-sheet').close(); B.toast('Route saved', 'ok'); }
 });
 
+// ---------- School details ----------
+let schoolFormDirty = false;
+['school-name-input', 'school-website', 'school-instagram', 'school-facebook', 'school-emergency']
+  .forEach((id) => $(id).addEventListener('input', () => { schoolFormDirty = true; }));
+
+function renderSchool() {
+  if (schoolFormDirty) return; // don't overwrite what the captain is typing
+  const r = state.route || {};
+  const info = r.schoolInfo || {};
+  $('school-name-input').value = r.school || '';
+  $('school-website').value = info.website || '';
+  $('school-instagram').value = info.instagram || '';
+  $('school-facebook').value = info.facebook || '';
+  $('school-emergency').value = info.emergency || '';
+}
+
+$('school-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const err = $('school-error');
+  err.textContent = '';
+  const val = (id) => $(id).value.trim();
+  const info = { website: val('school-website'), instagram: val('school-instagram'), facebook: val('school-facebook'), emergency: val('school-emergency') };
+  const links = B.schoolLinks(info);
+  if (info.website && !links.website) { err.textContent = 'Enter the website like greenvalleyschool.in.'; return $('school-website').focus(); }
+  if (info.instagram && !links.instagram) { err.textContent = 'Enter the Instagram handle like @greenvalleyschool, or an instagram.com link.'; return $('school-instagram').focus(); }
+  if (info.facebook && !links.facebook) { err.textContent = 'Enter the Facebook page name, or a facebook.com link.'; return $('school-facebook').focus(); }
+  if (info.emergency && !links.emergency) { err.textContent = 'Enter the emergency number with digits only, like 98765 43210.'; return $('school-emergency').focus(); }
+  const ok = await saveRoute({ school: val('school-name-input'), schoolInfo: info });
+  if (ok) { schoolFormDirty = false; B.toast('School details saved. Guardians can see them now.', 'ok'); }
+});
+
 // ---------- Start ----------
 function renderAll() {
   renderLive();
   renderStops();
+  renderSchool();
   renderStudents();
   renderAlerts();
 }

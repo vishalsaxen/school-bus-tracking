@@ -174,6 +174,34 @@ function renderStops() {
   }));
 }
 
+// ---------- School ----------
+function renderSchool() {
+  const r = route();
+  const info = r.schoolInfo || {};
+  const links = B.schoolLinks(info);
+  $('school-title').textContent = r.school || 'School';
+  const rows = [
+    ['Website', info.website, links.website, 'Open'],
+    ['Instagram', info.instagram, links.instagram, 'Open'],
+    ['Facebook', info.facebook, links.facebook, 'Open'],
+    ['Emergency number', info.emergency, links.emergency, 'Call'],
+  ].filter(([, text, href]) => text && href);
+  $('school-empty').hidden = rows.length > 0;
+  $('school-list').replaceChildren(...rows.map(([label, text, href, action]) => {
+    const li = B.el('li', 'item');
+    const main = B.el('div', 'item-main');
+    const sub = B.el('div', `item-sub${action === 'Call' ? ' mono' : ''}`, text.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''));
+    sub.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    main.append(B.el('div', 'item-title', label), sub);
+    const a = B.el('a', `mini-btn${action === 'Call' ? ' is-red' : ' is-amber'}`, action);
+    a.href = href;
+    a.style.textDecoration = 'none';
+    if (action === 'Open') { a.target = '_blank'; a.rel = 'noopener'; }
+    li.append(main, a);
+    return li;
+  }));
+}
+
 // ---------- Student ----------
 function renderStudent() {
   const r = route();
@@ -578,6 +606,7 @@ function renderAll() {
   renderEta();
   renderMap();
   renderStops();
+  renderSchool();
   renderStudent();
   renderFees();
   renderAlerts();

@@ -387,11 +387,50 @@
     else if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 16 });
   }
 
+
+  // ---------- School details (Bus Captain fills them in, guardians see them) ----------
+  // Turns what the captain typed into safe links. Social fields take a handle (@name) or a full URL.
+  function webUrl(text) {
+    const t = String(text || '').trim();
+    if (!t) return '';
+    const url = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+    try {
+      const u = new URL(url);
+      return (u.protocol === 'https:' || u.protocol === 'http:') && u.hostname.includes('.') ? u.href : '';
+    } catch { return ''; }
+  }
+  function socialUrl(text, host) {
+    const t = String(text || '').trim();
+    if (!t) return '';
+    if (/^https?:\/\//i.test(t) || t.toLowerCase().includes(`${host}/`)) {
+      const url = webUrl(t);
+      return url && new URL(url).hostname.replace(/^(www\.|m\.)/, '').endsWith(host) ? url : '';
+    }
+    const handle = t.replace(/^@/, '');
+    return /^[A-Za-z0-9._-]{1,60}$/.test(handle) ? `https://${host}/${handle}` : '';
+  }
+  // Emergency lines can be landlines or short codes like 112, so only check the shape.
+  function phoneHref(text) {
+    const t = String(text || '').trim();
+    const digits = t.replace(/\D/g, '');
+    if (!/^\+?[\d\s()-]+$/.test(t) || digits.length < 3 || digits.length > 15) return '';
+    return `tel:${t.startsWith('+') ? '+' : ''}${digits}`;
+  }
+  function schoolLinks(info) {
+    const i = info || {};
+    return {
+      website: webUrl(i.website),
+      instagram: socialUrl(i.instagram, 'instagram.com'),
+      facebook: socialUrl(i.facebook, 'facebook.com'),
+      emergency: phoneHref(i.emergency),
+    };
+  }
+
   window.Bus = {
     mobileDigits, isValidMobile, e164, formatMobile,
     timeAgo, dateKey, prettyDate, millis, clock, schoolYearMonths, monthLabel, monthsText, feeMessage, inr,
     metresBetween, kmText, kmh, etaMinutes, tripOrder, nextStop, stopState, TRIPS, seenAt, isLive,
-    upiAddress, upiLink,
+    upiAddress, upiLink, webUrl, socialUrl, phoneHref, schoolLinks,
     firebaseReady, loadFirebase, errorText, dbErrorText, setupSignIn,
     toast, setupTabs, el, horn,
     createMap, drawRoute, fitRoute,
