@@ -317,12 +317,12 @@ function renderFees() {
       label.classList.add('is-paid');
       box.checked = true;
       box.disabled = true;
-      text.append(B.el('small', '', 'Paid'));
+      text.append(B.el('small', '', 'Confirmed'));
     } else if (paid.reported.has(m.key)) {
       label.classList.add('is-pending');
       box.checked = true;
       box.disabled = true;
-      text.append(B.el('small', '', 'Checking'));
+      text.append(B.el('small', '', 'Paid'));
     } else {
       box.checked = state.checked.has(m.key);
       label.classList.toggle('is-checked', box.checked);
@@ -332,7 +332,7 @@ function renderFees() {
       });
     }
     if (m.current) label.classList.add('is-now');
-    box.setAttribute('aria-label', `${m.label}${box.disabled ? (paid.received.has(m.key) ? ', paid' : ', waiting for Bus Captain') : ''}`);
+    box.setAttribute('aria-label', `${m.label}${box.disabled ? (paid.received.has(m.key) ? ', paid and confirmed' : ', paid') : ''}`);
     label.append(box, text);
     return label;
   }));
@@ -353,14 +353,20 @@ function renderFees() {
     const li = B.el('li', 'item');
     const main = B.el('div', 'item-main');
     const title = B.el('div', 'item-title', B.inr(p.amount));
-    const tag = { reported: ['is-blue', 'Waiting for Bus Captain'], received: ['is-green', 'Received'], rejected: ['is-red', 'Not received'] }[p.status] || ['', p.status];
+    const tag = { reported: ['is-blue', 'Paid'], received: ['is-green', 'Confirmed'], rejected: ['is-red', 'Not received'] }[p.status] || ['', p.status];
     title.append(B.el('span', `tag ${tag[0]}`, tag[1]));
-    main.append(title, B.el('div', 'item-sub', p.months.map(B.monthLabel).join(', ')),
+    main.append(title, B.el('div', 'item-sub', B.monthsText(p.months)),
       B.el('div', 'item-sub', `${B.millis(p.at) ? new Date(B.millis(p.at)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Just now'}${p.ref ? ` · UPI ref ${p.ref}` : ''}`));
     li.append(main);
     return li;
   }));
 }
+
+// In the Guardians Android app the UPI app reports back whether the payment went through, so a
+// successful payment is recorded and the Bus Captain told without the guardian doing anything.
+// In a browser that answer isn't available, so the guardian confirms it on the sheet instead.
+const upiBridge = window.BeaconAndroid && window.BeaconAndroid.payUpi ? window.BeaconAndroid : null;
+if (upiBridge) $('pay-hint').textContent = 'Pay fee opens your UPI app (Google Pay, PhonePe, Paytm, BHIM) with the UPI ID and amount filled in. When the payment succeeds, the months are marked paid and the Bus Captain is told automatically.';
 
 $('pay-btn').addEventListener('click', () => {
   const r = route();
@@ -369,14 +375,66 @@ $('pay-btn').addEventListener('click', () => {
   const months = [...state.checked].sort();
   const amount = months.length * r.fee;
   state.pendingPay = { kid, months, amount, perMonth: r.fee };
-  const note = `${r.name || 'Bus'} fee ${kid.name} ${months.map(B.monthLabel).join(' ')}`.slice(0, 70);
-  $('paid-sub').textContent = `${B.inr(amount)} for ${kid.name}: ${months.map(B.monthLabel).join(', ')}. The Bus Captain checks it and marks it received.`;
+  const note = `${r.name || 'Bus'} fee ${kid.name} ${B.monthsText(months)}`.slice(0, 70);
+  $('paid-sub').textContent = `${B.inr(amount)} for ${kid.name}: ${B.monthsText(months)}. The Bus Captain is told as soon as you confirm.`;
   $('paid-ref').value = '';
   $('paid-error').textContent = '';
+  const link = B.upiLink({ upi: r.upi, payee: r.payee, amount, note });
+  if (upiBridge) {
+    upiBridge.payUpi(link); // the answer comes back in window.onUpiResult
+    return;
+  }
   // Open the UPI app; the question waits here for when the guardian comes back.
-  window.location.href = B.upiLink({ upi: r.upi, payee: r.payee, amount, note });
+  window.location.href = link;
   setTimeout(() => { if (state.pendingPay && !$('paid-sheet').open) $('paid-sheet').showModal(); }, 800);
 });
+
+// Called by the Android app with the UPI app's answer, e.g. {status: 'SUCCESS', txnId: '…'}.
+window.onUpiResult = async (json) => {
+  const p = state.pendingPay;
+  if (!p) return;
+  let res = {};
+  try { res = JSON.parse(json) || {}; } catch {}
+  const status = String(res.status || '').toUpperCase();
+  if (status === 'SUCCESS') {
+    try {
+      await recordPayment(p, { ref: res.approvalRefNo || res.txnRef || res.txnId || '', txnId: res.txnId || '', auto: true });
+      B.toast(`Paid ${B.inr(p.amount)} ✓ Bus Captain notified`, 'ok');
+    } catch (error) {
+      B.toast(`Paid, but couldn't record it: ${B.dbErrorText(error)}`, 'err');
+      $('paid-sheet').showModal(); // let them record it by hand
+    }
+  } else if (status === 'FAILURE' || status === 'FAILED' || status === 'CANCELLED') {
+    state.pendingPay = null;
+    B.toast('Payment didn\'t go through. Nothing was recorded.', 'err');
+  } else if (status === 'NO_APP') {
+    state.pendingPay = null;
+    B.toast('No UPI app found on this phone. Copy the UPI ID below and pay from any UPI app.', 'err');
+  } else {
+    // Some UPI apps don't report back (or report "submitted"): ask the guardian.
+    $('paid-sheet').showModal();
+  }
+};
+
+async function recordPayment(p, { ref = '', txnId = '', auto = false } = {}) {
+  await state.fb.addDoc(sub('payments'), {
+    studentId: p.kid.id,
+    studentName: p.kid.name,
+    months: p.months,
+    perMonth: p.perMonth,
+    amount: p.amount,
+    ref: String(ref).replace(/\s/g, '').slice(0, 40),
+    txnId: String(txnId).slice(0, 40),
+    auto,
+    by: state.me,
+    family: p.kid.family,
+    status: 'reported',
+    at: state.fb.serverTimestamp(),
+  });
+  state.pendingPay = null;
+  state.checked.clear();
+  renderFees();
+}
 
 $('paid-no').addEventListener('click', () => {
   state.pendingPay = null;
@@ -389,22 +447,9 @@ $('paid-form').addEventListener('submit', async (event) => {
   const p = state.pendingPay;
   if (!p) return $('paid-sheet').close();
   try {
-    await state.fb.addDoc(sub('payments'), {
-      studentId: p.kid.id,
-      studentName: p.kid.name,
-      months: p.months,
-      perMonth: p.perMonth,
-      amount: p.amount,
-      ref: $('paid-ref').value.replace(/\s/g, '').slice(0, 24),
-      by: state.me,
-      family: p.kid.family,
-      status: 'reported',
-      at: state.fb.serverTimestamp(),
-    });
-    state.pendingPay = null;
-    state.checked.clear();
+    await recordPayment(p, { ref: $('paid-ref').value });
     $('paid-sheet').close();
-    B.toast('Payment recorded. The Bus Captain will confirm it.', 'ok');
+    B.toast(`Paid ${B.inr(p.amount)} ✓ Bus Captain notified`, 'ok');
   } catch (error) {
     $('paid-error').textContent = B.dbErrorText(error);
   }

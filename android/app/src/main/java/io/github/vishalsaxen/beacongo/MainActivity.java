@@ -30,6 +30,9 @@ public class MainActivity extends Activity {
     private static final String SITE_ORIGIN = "https://vishalsaxen.github.io/school-bus-tracking/";
     private static final int REQ_LOCATION = 1;
     private static final int REQ_NOTIFICATIONS = 2;
+    private static final int REQ_UPI = 3;
+    private static final String CH_APP_ALERTS = "app-alerts";
+    private int alertId = 100;
 
     private WebView web;
     private volatile String currentUrl = SITE;
@@ -117,6 +120,61 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** The UPI app's answer to a payment, handed to the Guardians page as JSON. */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_UPI) return;
+        org.json.JSONObject res = new org.json.JSONObject();
+        try {
+            // UPI apps answer with e.g. "txnId=…&responseCode=00&Status=SUCCESS&txnRef=…".
+            String response = data == null ? null : data.getStringExtra("response");
+            if (response == null && data != null) response = data.getStringExtra("Status") != null ? "Status=" + data.getStringExtra("Status") : null;
+            if (response != null) {
+                for (String part : response.split("&")) {
+                    int eq = part.indexOf('=');
+                    if (eq <= 0) continue;
+                    String key = part.substring(0, eq).trim();
+                    String value = Uri.decode(part.substring(eq + 1).trim());
+                    String k = key.toLowerCase(java.util.Locale.US);
+                    if (k.equals("status")) res.put("status", value);
+                    else if (k.equals("txnid")) res.put("txnId", value);
+                    else if (k.equals("txnref")) res.put("txnRef", value);
+                    else if (k.equals("approvalrefno")) res.put("approvalRefNo", value);
+                    else if (k.equals("responsecode")) res.put("responseCode", value);
+                }
+            }
+            if (!res.has("status")) res.put("status", resultCode == RESULT_CANCELED ? "UNKNOWN" : "SUBMITTED");
+        } catch (Exception ignored) {
+            // Leave status out; the page asks the guardian instead.
+        }
+        sendUpiResult(res.toString());
+    }
+
+    private void sendUpiResult(String json) {
+        web.evaluateJavascript("window.onUpiResult && window.onUpiResult(" + org.json.JSONObject.quote(json) + ")", null);
+    }
+
+    private void showAlert(String title, String text) {
+        android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+        if (nm.getNotificationChannel(CH_APP_ALERTS) == null) {
+            android.app.NotificationChannel ch = new android.app.NotificationChannel(CH_APP_ALERTS, "Alerts", android.app.NotificationManager.IMPORTANCE_HIGH);
+            ch.setDescription("Fee payments and Child not going alerts");
+            nm.createNotificationChannel(ch);
+        }
+        android.app.PendingIntent open = android.app.PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
+            android.app.PendingIntent.FLAG_IMMUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+        nm.notify(alertId++, new android.app.Notification.Builder(this, CH_APP_ALERTS)
+            .setSmallIcon(R.drawable.ic_stat_beacon)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(new android.app.Notification.BigTextStyle().bigText(text))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setColor(0xFFFFA41B)
+            .build());
+    }
+
     @Override
     public void onBackPressed() {
         if (web.canGoBack()) web.goBack(); else super.onBackPressed();
@@ -189,6 +247,31 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean isWatching() {
             return WatchService.isConfigured(MainActivity.this);
+        }
+
+        /** Guardians app: opens a upi://pay link and reports the result to window.onUpiResult. */
+        @JavascriptInterface
+        public void payUpi(String url) {
+            if (!fromOurPage() || !"guardian".equals(BuildConfig.FLAVOR) || url == null || !url.startsWith("upi://pay")) return;
+            runOnUiThread(() -> {
+                Intent pay = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                if (pay.resolveActivity(getPackageManager()) == null) {
+                    sendUpiResult("{\"status\":\"NO_APP\"}");
+                    return;
+                }
+                try {
+                    startActivityForResult(Intent.createChooser(pay, "Pay with"), REQ_UPI);
+                } catch (ActivityNotFoundException e) {
+                    sendUpiResult("{\"status\":\"NO_APP\"}");
+                }
+            });
+        }
+
+        /** Shows a phone notification (fee paid, child not going, …). */
+        @JavascriptInterface
+        public void showNotification(String title, String text) {
+            if (!fromOurPage()) return;
+            runOnUiThread(() -> showAlert(title, text));
         }
 
         @JavascriptInterface

@@ -56,6 +56,19 @@
   }
   const monthLabel = (key) => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); };
 
+  // "Nov, Dec 2026" or "Dec 2026, Jan 2027": months grouped by year.
+  function monthsText(keys) {
+    const byYear = new Map();
+    [...keys].sort().forEach((k) => {
+      const [y, m] = k.split('-').map(Number);
+      const short = new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'short' });
+      byYear.set(y, [...(byYear.get(y) || []), short]);
+    });
+    return [...byYear].map(([y, names]) => `${names.join(', ')} ${y}`).join(', ');
+  }
+  // The message the Bus Captain gets for a fee payment.
+  const feeMessage = (p) => `${p.studentName} submitted fees of ${inr(p.amount)} for ${monthsText(p.months || [])}`;
+
   const inr = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
   // ---------- Distance and ETA ----------
@@ -376,7 +389,7 @@
 
   window.Bus = {
     mobileDigits, isValidMobile, e164, formatMobile,
-    timeAgo, dateKey, prettyDate, millis, clock, schoolYearMonths, monthLabel, inr,
+    timeAgo, dateKey, prettyDate, millis, clock, schoolYearMonths, monthLabel, monthsText, feeMessage, inr,
     metresBetween, kmText, kmh, etaMinutes, tripOrder, nextStop, stopState, TRIPS, seenAt, isLive,
     upiAddress, upiLink,
     firebaseReady, loadFirebase, errorText, dbErrorText, setupSignIn,

@@ -514,11 +514,11 @@ function renderAlerts() {
     const li = B.el('li', 'item');
     li.append(B.el('div', 'avatar', '₹'));
     const main = B.el('div', 'item-main');
-    const title = B.el('div', 'item-title', `${p.studentName} · ${B.inr(p.amount)}`);
+    const title = B.el('div', 'item-title', B.feeMessage(p));
     const tag = { reported: ['is-blue', 'Check'], received: ['is-green', 'Received'], rejected: ['is-red', 'Not received'] }[p.status] || ['', p.status];
     title.append(B.el('span', `tag ${tag[0]}`, tag[1]));
+    if (p.auto) title.append(B.el('span', 'tag is-green', 'UPI app ✓'));
     main.append(title,
-      B.el('div', 'item-sub', p.months.map(B.monthLabel).join(', ')),
       B.el('div', 'item-sub', `${p.ref ? `UPI ref ${p.ref} · ` : ''}${B.formatMobile(p.by)}${B.millis(p.at) ? ` · ${B.timeAgo(B.millis(p.at))}` : ''}`));
     li.append(main);
     if (p.status === 'reported') {
@@ -545,6 +545,27 @@ async function markPayment(p, status) {
   }
 }
 
+// Tell the Bus Captain: a toast, a buzz, and a phone notification (Android app or browser).
+function notifyCaptain(title, body, tag) {
+  B.toast(title);
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  if (window.BeaconAndroid && window.BeaconAndroid.showNotification) {
+    try { window.BeaconAndroid.showNotification(title, body); } catch {}
+  } else if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+    try { new Notification(title, { body, tag }); } catch {}
+  }
+}
+
+// "Aarav Sharma submitted fees of ₹2,000 for Nov, Dec 2026" when a guardian pays.
+function announcePayments() {
+  const ids = new Set(state.payments.map((p) => p.id));
+  if (state.seenPayments) {
+    state.payments.filter((p) => !state.seenPayments.has(p.id) && p.status === 'reported')
+      .forEach((p) => notifyCaptain(B.feeMessage(p), p.auto ? 'Paid in a UPI app. Check it reached your account.' : 'Reported by the guardian.', `pay-${p.id}`));
+  }
+  state.seenPayments = ids;
+}
+
 // Pop up "not going" alerts that arrive while the app is open.
 function announceNotices() {
   const ids = new Set(state.notices.map((n) => n.id));
@@ -552,11 +573,8 @@ function announceNotices() {
     const fresh = state.notices.filter((n) => !state.seenNotices.has(n.id) && n.date >= today());
     if (fresh.length) {
       const n = fresh[0];
-      B.toast(`${n.studentName} is not going ${B.prettyDate(n.date).toLowerCase()} (${n.trip === 'both' ? 'pickup and drop' : B.TRIPS[n.trip].toLowerCase()})`);
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-        try { new Notification(`${n.studentName} is not going ${B.prettyDate(n.date).toLowerCase()}`, { body: 'Child not going alert from a guardian', tag: `notice-${n.id}` }); } catch {}
-      }
+      notifyCaptain(`${n.studentName} is not going ${B.prettyDate(n.date).toLowerCase()}`,
+        `${n.trip === 'both' ? 'Pickup and drop' : B.TRIPS[n.trip]}${n.note ? ` · “${n.note}”` : ''}`, `notice-${n.id}`);
     }
   }
   state.seenNotices = ids;
@@ -650,6 +668,7 @@ function watchData() {
   }, fail));
   unsubs.push(fb.onSnapshot(sub('payments'), (snap) => {
     state.payments = snap.docs.map((d) => ({ id: d.id, ...d.data(), months: d.data().months || [] }));
+    announcePayments();
     renderAll();
   }, fail));
 }
@@ -666,7 +685,7 @@ async function start() {
   B.setupSignIn(state.fb);
   state.fb.onAuthStateChanged(state.fb.auth, (user) => {
     unsubs.splice(0).forEach((u) => u());
-    Object.assign(state, { me: user ? user.phoneNumber : null, route: null, routeLoaded: false, students: [], studentsLoaded: false, notices: [], payments: [], seenNotices: null, pushError: null });
+    Object.assign(state, { me: user ? user.phoneNumber : null, route: null, routeLoaded: false, students: [], studentsLoaded: false, notices: [], payments: [], seenNotices: null, seenPayments: null, pushError: null });
     show(Boolean(state.me));
     if (!state.me) { stopWatching(); syncAndroid(); return; }
     fitted = false;
