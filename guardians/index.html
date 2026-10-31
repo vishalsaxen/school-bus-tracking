@@ -145,12 +145,12 @@
             <div style="height:12px"></div>
             <div id="months" class="months"></div>
             <div style="height:12px"></div>
-            <div class="legend"><span class="l-paid">Paid</span><span class="l-pending">Waiting for Bus Captain</span><span class="l-due">Due</span></div>
+            <div class="legend"><span class="l-pending">Paid</span><span class="l-paid">Confirmed by Bus Captain</span><span class="l-due">Due</span></div>
           </div>
           <div class="fee-total"><span class="muted" id="fee-count">Tick the months to pay</span><b id="fee-total">₹0</b></div>
           <button id="pay-btn" class="primary-btn" type="button" disabled>Pay fee</button>
           <div class="upi-box"><span class="small muted">Pays to</span><span id="upi-id" class="mono small"></span><button id="copy-upi" class="mini-btn" type="button">Copy</button></div>
-          <p class="hint">Pay fee opens your UPI app (Google Pay, PhonePe, Paytm, BHIM) with the amount filled in. Come back here after paying to record it.</p>
+          <p id="pay-hint" class="hint">Pay fee opens your UPI app (Google Pay, PhonePe, Paytm, BHIM) with the UPI ID and amount filled in. Come back here after paying to record it.</p>
           <div class="section-head"><span>Payment history</span></div>
           <ul id="pay-history" class="list"></ul>
           <p id="pay-history-empty" class="empty">No payments yet.</p>
