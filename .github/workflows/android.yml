@@ -1,8 +1,8 @@
 name: Android app
 
-# Builds the Bus Captain Android app. On main it also publishes the APK as the latest release,
-# so https://github.com/vishalsaxen/school-bus-tracking/releases/latest/download/bus-captain.apk
-# always installs the newest version.
+# Builds both Android apps (Bus Captain and Guardians). On main it also publishes them as the
+# latest release, so .../releases/latest/download/bus-captain.apk and .../guardians.apk always
+# install the newest versions.
 on:
   push:
     branches: [main]
@@ -32,18 +32,21 @@ jobs:
         run: |
           chmod +x gradlew
           # On failure, surface the errors as annotations so they show on the PR's checks page.
-          if ! ./gradlew --no-daemon assembleRelease > build.log 2>&1; then
+          if ! ./gradlew --no-daemon assembleCaptainRelease assembleGuardianRelease > build.log 2>&1; then
             grep -E "error|What went wrong|FAILED|Exception|\.java:[0-9]+|\.xml:[0-9]+" build.log | head -40 | while IFS= read -r line; do echo "::error::$line"; done
             tail -60 build.log
             exit 1
           fi
           tail -5 build.log
-          cp app/build/outputs/apk/release/app-release.apk bus-captain.apk
+          cp app/build/outputs/apk/captain/release/app-captain-release.apk bus-captain.apk
+          cp app/build/outputs/apk/guardian/release/app-guardian-release.apk guardians.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bus-captain-apk
-          path: android/bus-captain.apk
+          name: android-apks
+          path: |
+            android/bus-captain.apk
+            android/guardians.apk
 
       - name: Publish as latest release
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -51,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="bus-captain-v1.0.${{ github.run_number }}"
-          gh release create "$tag" android/bus-captain.apk \
-            --title "Bus Captain Android app 1.0.${{ github.run_number }}" \
-            --notes "Install on the Bus Captain's phone: open this page on the phone, tap bus-captain.apk, and allow installing from this source." \
+          gh release create "$tag" android/bus-captain.apk android/guardians.apk \
+            --title "Bus Captain and Guardians Android apps 1.0.${{ github.run_number }}" \
+            --notes "Bus Captain's phone: tap bus-captain.apk. Guardians' phones: tap guardians.apk. Allow installing from this source when asked." \
             --latest

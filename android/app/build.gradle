@@ -7,12 +7,32 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId 'io.github.vishalsaxen.beacongo'
         minSdk 26
         targetSdk 34
         // CI sets BUILD_NUMBER so every new APK installs over the last one.
         versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
         versionName "1.0.${System.getenv('BUILD_NUMBER') ?: '0'}"
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Two apps from one codebase: the bus phone's app and the guardians' app.
+    flavorDimensions 'app'
+    productFlavors {
+        captain {
+            dimension 'app'
+            applicationId 'io.github.vishalsaxen.beacongo' // unchanged, so it updates the installed app
+            resValue 'string', 'app_name', 'Bus Captain'
+            buildConfigField 'String', 'SITE', '"https://vishalsaxen.github.io/school-bus-tracking/bus-captain/"'
+        }
+        guardian {
+            dimension 'app'
+            applicationId 'io.github.vishalsaxen.busguardians'
+            resValue 'string', 'app_name', 'Guardians'
+            buildConfigField 'String', 'SITE', '"https://vishalsaxen.github.io/school-bus-tracking/guardians/"'
+        }
     }
 
     signingConfigs {

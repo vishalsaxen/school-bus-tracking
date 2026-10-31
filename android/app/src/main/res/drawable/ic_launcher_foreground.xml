@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Beacon Go arrow (same shape as the app's tracker icon), lilac on navy. -->
+<!-- The arrow icon, orange on navy. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
     <group android:translateX="30" android:translateY="30">
         <path
-            android:fillColor="#C9B8FF"
-            android:strokeColor="#C9B8FF"
+            android:fillColor="#FFA41B"
+            android:strokeColor="#FFA41B"
             android:strokeWidth="2"
             android:strokeLineJoin="round"
             android:pathData="M6,22 L44,4 L26,42 L22,26 Z" />

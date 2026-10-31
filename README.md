@@ -23,11 +23,17 @@ Live sites (GitHub Pages from `main`):
 6. **Fees:** the guardian ticks one or more months, the **Pay fee** button turns on with the total (months × the route's fee) and opens their UPI app (Google Pay, PhonePe, Paytm, BHIM) to the route's UPI ID. Back in the app they confirm it went through (with the UPI reference if they like). The Bus Captain sees it under **Alerts** and marks it **Received** or **Not received**. There is no payment gateway, so the app records what the guardian reports and the Bus Captain confirms it.
 7. **Not Going:** the guardian picks the child, the day (today, tomorrow or a date) and pickup, drop or both. The Bus Captain gets it under **Alerts**, and the child is tagged "Not going today".
 
+## Guardians Android app (lock-screen alerts)
+
+- Download: https://github.com/vishalsaxen/school-bus-tracking/releases/latest/download/guardians.apk
+- It shows the Guardians page and runs a background watcher. While the bus is sharing it checks every ~20 seconds and keeps a notification up to date ("Bus 1.2 km from Sunrise Valley · about 4 min"). With the phone locked it alerts once per trip when the bus is about 5 minutes from the child's stop, and whenever the Bus Captain presses Honk. When the bus is not sharing it checks every ~2 minutes to save battery.
+- It reads the same `routes/{captain}` document as the website, signed in as the guardian, so it needs no server and no rule changes.
+
 ## Android app (`android/`) for the Bus Captain
 
 - Download: https://github.com/vishalsaxen/school-bus-tracking/releases/latest/download/bus-captain.apk
 - It shows the Bus Captain page and runs a background service that keeps sending the bus location every ~15 seconds with the screen locked. A phone browser stops GPS when the screen locks, so the Bus Captain should use the app.
-- Built by GitHub Actions (`.github/workflows/android.yml`); pushes to `main` publish a new release. `android/app/beacon-go.keystore` signs every build with the same key, so new versions install over old ones.
+- Both apps are built from `android/` as two product flavors (`captain` and `guardian`) by GitHub Actions (`.github/workflows/android.yml`); pushes to `main` publish a new release with both APKs. `android/app/beacon-go.keystore` signs every build with the same key, so new versions install over old ones.
 
 ## Data (Cloud Firestore)
 
