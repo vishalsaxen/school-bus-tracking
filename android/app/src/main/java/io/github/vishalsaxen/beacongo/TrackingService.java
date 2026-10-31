@@ -37,13 +37,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Keeps sending the child's location to Firestore (children/{child's +91 number}) while the
- * phone is locked, as a foreground service with a "Sharing location" notification.
- * It writes the same fields as the web page, through the Firestore REST API, signed in as the
- * child with the Firebase refresh token the page handed over.
+ * Keeps sending the bus location to Firestore (routes/{Bus Captain's +91 number}) while the
+ * phone is locked, as a foreground service with a "Sharing bus location" notification.
+ * It writes the same location fields as the web page, through the Firestore REST API, signed in
+ * as the Bus Captain with the Firebase refresh token the page handed over. Only the location
+ * fields are written (update mask), so the route's stops, fees and guardians are left alone.
  */
 public class TrackingService extends Service implements LocationListener {
-    private static final String TAG = "BeaconGo";
+    private static final String TAG = "BusCaptain";
     private static final String PREFS = "beacon";
     private static final String KEY_CONFIG = "trackingConfig";
     private static final String CHANNEL = "sharing";
@@ -121,7 +122,7 @@ public class TrackingService extends Service implements LocationListener {
         locationThread = new HandlerThread("beacon-location");
         locationThread.start();
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-        cpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BeaconGo:sharing");
+        cpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BusCaptain:sharing");
         cpuLock.acquire();
         try {
             for (String provider : new String[] {LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER}) {
@@ -130,7 +131,7 @@ public class TrackingService extends Service implements LocationListener {
                 }
             }
         } catch (SecurityException e) {
-            updateNotification("Location permission is off. Open Beacon Go to allow it.");
+            updateNotification("Location permission is off. Open Bus Captain to allow it.");
         }
     }
 
@@ -176,18 +177,18 @@ public class TrackingService extends Service implements LocationListener {
     // ---------- Firestore ----------
     private void send(Location location) throws Exception {
         String projectId = config.getString("projectId");
-        String docName = "projects/" + projectId + "/databases/(default)/documents/children/" + config.getString("docId");
+        String collection = config.optString("collection", "routes");
+        String docName = "projects/" + projectId + "/databases/(default)/documents/" + collection + "/" + config.getString("docId");
 
         JSONObject fields = new JSONObject()
-            .put("name", str(config.getString("name")))
-            .put("bus", integer(config.optInt("bus", 1)))
-            .put("parents", array(config.getJSONArray("parents")))
             .put("sharing", new JSONObject().put("booleanValue", true))
             .put("location", new JSONObject().put("mapValue", new JSONObject().put("fields", new JSONObject()
                 .put("lat", dbl(location.getLatitude()))
                 .put("lng", dbl(location.getLongitude()))
                 .put("accuracy", integer(Math.round(location.getAccuracy()))))))
             .put("fixAt", integer(location.getTime()));
+        if (location.hasSpeed()) fields.put("speed", dbl(Math.round(location.getSpeed() * 10) / 10.0));
+        if (location.hasBearing()) fields.put("heading", integer(Math.round(location.getBearing())));
         int battery = batteryPercent();
         if (battery >= 0) fields.put("battery", integer(battery));
 
@@ -268,12 +269,6 @@ public class TrackingService extends Service implements LocationListener {
     private static JSONObject integer(long v) throws Exception { return new JSONObject().put("integerValue", String.valueOf(v)); }
     private static JSONObject dbl(double v) throws Exception { return new JSONObject().put("doubleValue", v); }
 
-    private static JSONObject array(JSONArray values) throws Exception {
-        JSONArray out = new JSONArray();
-        for (int i = 0; i < values.length(); i++) out.put(str(values.getString(i)));
-        return new JSONObject().put("arrayValue", new JSONObject().put("values", out));
-    }
-
     private int batteryPercent() {
         Intent b = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         if (b == null) return -1;
@@ -284,23 +279,22 @@ public class TrackingService extends Service implements LocationListener {
 
     // ---------- Notification ----------
     private String childLabel() {
-        if (config == null) return "Beacon Go";
-        String first = config.optString("name", "Sharing").trim().split("\\s+")[0];
-        return first + " · Bus No. " + config.optInt("bus", 1);
+        if (config == null) return "Bus Captain";
+        return config.optString("label", "Bus");
     }
 
     private Notification notification(String text) {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm.getNotificationChannel(CHANNEL) == null) {
             NotificationChannel ch = new NotificationChannel(CHANNEL, "Location sharing", NotificationManager.IMPORTANCE_LOW);
-            ch.setDescription("Shows while Beacon Go is sharing location with parents");
+            ch.setDescription("Shows while Bus Captain is sharing the bus location with guardians");
             nm.createNotificationChannel(ch);
         }
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         return new Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_beacon)
-            .setContentTitle("Sharing location with parents")
+            .setContentTitle("Sharing bus location with guardians")
             .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)

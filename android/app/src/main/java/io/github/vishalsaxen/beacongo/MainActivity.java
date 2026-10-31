@@ -21,12 +21,12 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 /**
- * Beacon Go as an installed app: the same child page as the website, inside a WebView, plus a
- * bridge (window.BeaconAndroid) that hands the signed-in child's details to TrackingService so
- * location keeps reaching the parents while the screen is locked.
+ * Bus Captain as an installed app: the same Bus Captain page as the website, inside a WebView,
+ * plus a bridge (window.BeaconAndroid) that hands the signed-in Bus Captain's route to
+ * TrackingService so the bus location keeps reaching guardians while the screen is locked.
  */
 public class MainActivity extends Activity {
-    static final String SITE = "https://vishalsaxen.github.io/school-bus-tracking/child/";
+    static final String SITE = "https://vishalsaxen.github.io/school-bus-tracking/bus-captain/";
     private static final String SITE_ORIGIN = "https://vishalsaxen.github.io/school-bus-tracking/";
     private static final int REQ_LOCATION = 1;
     private static final int REQ_NOTIFICATIONS = 2;
@@ -137,13 +137,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Called from the child page's JavaScript. */
+    /** Called from the Bus Captain page's JavaScript. */
     private class Bridge {
         private boolean fromOurPage() {
             return currentUrl != null && currentUrl.startsWith(SITE_ORIGIN);
         }
 
-        /** config: JSON with apiKey, projectId, docId, refreshToken, name, bus, parents. */
+        /** config: JSON with apiKey, projectId, collection, docId, refreshToken, label. */
         @JavascriptInterface
         public void startTracking(String config) {
             if (!fromOurPage()) return;

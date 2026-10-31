@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1729">
+  <title>Guardians</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="../shared/theme.css">
+</head>
+<body>
+  <main class="app">
+
+    <!-- Sign in -->
+    <section id="signin" class="signin" hidden>
+      <div class="logo"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 18v2M16 18v2"/><circle cx="8" cy="14.5" r="1"/><circle cx="16" cy="14.5" r="1"/></svg></div>
+      <h1>Track your child's school bus</h1>
+      <p class="lead">Sign in with the mobile number your Bus Captain has for your child.</p>
+      <form id="signin-form" class="card form" novalidate>
+        <div class="field">
+          <label for="phone">Your mobile</label>
+          <div class="phone-row">
+            <span class="prefix">+91</span>
+            <input id="phone" type="tel" inputmode="numeric" maxlength="16" placeholder="98765 43210" autocomplete="tel-national">
+          </div>
+        </div>
+        <div id="code-field" class="field" hidden>
+          <label for="code">OTP</label>
+          <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" autocomplete="one-time-code">
+        </div>
+        <p id="signin-status" class="status-line" aria-live="polite"></p>
+        <div id="recaptcha"></div>
+        <button id="signin-btn" class="primary-btn" type="submit">Send OTP</button>
+      </form>
+      <p class="signin-foot">Bus Captain? Open <a href="../bus-captain/">the Bus Captain app</a> instead.</p>
+    </section>
+
+    <!-- Signed in, but no route lists this number -->
+    <section id="no-route" class="signin" hidden>
+      <h1>Not on a route yet</h1>
+      <p class="lead" id="no-route-text"></p>
+      <button id="no-route-signout" class="secondary-btn" type="button">Sign out</button>
+    </section>
+
+    <!-- Signed in -->
+    <div id="home" hidden>
+      <header class="top">
+        <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 18v2M16 18v2"/><circle cx="8" cy="14.5" r="1"/><circle cx="16" cy="14.5" r="1"/></svg></div>
+        <div class="brand">
+          <div class="brand-name"><span id="school-name" class="name">School Bus</span><span id="live-badge" class="live-badge is-off">OFFLINE</span></div>
+          <div class="brand-sub"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span id="who">Guardian</span></div>
+        </div>
+        <button id="refresh-btn" class="icon-btn" type="button" aria-label="Refresh"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        <button id="menu-btn" class="icon-btn" type="button" aria-label="Menu"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+      </header>
+
+      <div id="honk-banner" class="banner" hidden>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffa41b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        <div class="banner-text"><strong id="honk-title">The Bus Captain honked</strong><span id="honk-sub"></span></div>
+        <button id="honk-close" class="banner-close" type="button" aria-label="Dismiss">×</button>
+      </div>
+
+      <div class="trip-row">
+        <div id="trip-seg" class="seg is-readonly" aria-label="Current trip">
+          <button type="button" data-trip="pickup" class="is-on" tabindex="-1"><span class="long">Morning </span>Pickup</button>
+          <button type="button" data-trip="drop" tabindex="-1"><span class="long">Afternoon </span>Drop</button>
+        </div>
+        <button id="notgoing-btn" class="ghost-btn is-danger" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg><span id="notgoing-label">Not Going</span></button>
+      </div>
+
+      <div class="next-card">
+        <div id="eta" class="eta is-idle"><b id="eta-min">–</b><span>MIN</span></div>
+        <div class="next-meta">
+          <div class="kicker"><span id="next-kicker">Arriving next</span><span id="next-dot" class="dot is-off"></span></div>
+          <div id="next-name" class="next-name">Waiting for the bus</div>
+          <div id="next-sub" class="next-sub"></div>
+        </div>
+        <div class="route-meta">
+          <span id="route-chip" class="route-chip">Route</span>
+          <span id="plate" class="plate"></span>
+        </div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab is-on" role="tab" aria-selected="true" data-panel="panel-live" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Live GPS</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-stops" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="stops-tab">Stops (0)</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-student" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>Student</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-fees" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12M6 8h12M14.5 21 6 13h3a5 5 0 0 0 0-10"/></svg>Fees<span id="fees-dot" class="badge-dot" hidden></span></button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-alerts" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Alerts<span id="alerts-dot" class="badge-dot" hidden></span></button>
+      </nav>
+
+      <!-- Live GPS -->
+      <section id="panel-live" class="panel" role="tabpanel">
+        <div class="map-card">
+          <div id="map" class="map" aria-label="Live map of the school bus"></div>
+          <div id="map-empty" class="map-empty" hidden>Map could not load. Check the internet connection.</div>
+          <span id="chip-route" class="map-chip tl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg><span>Route</span></span>
+          <span id="chip-speed" class="map-chip tr"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 14l4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></svg><span>0 km/h</span></span>
+          <span id="chip-gps" class="map-chip bl is-off"><span class="live"></span><span>Offline</span></span>
+          <button id="recenter" class="recenter" type="button" aria-label="Show the bus"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+        </div>
+        <p id="live-note" class="hint" style="margin-top:10px"></p>
+      </section>
+
+      <!-- Stops -->
+      <section id="panel-stops" class="panel" role="tabpanel" hidden>
+        <h2 class="panel-title">Stops</h2>
+        <p id="stops-sub" class="panel-sub"></p>
+        <ul id="stop-list" class="list"></ul>
+        <p id="stops-empty" class="empty">The Bus Captain hasn't added stops yet.</p>
+      </section>
+
+      <!-- Student -->
+      <section id="panel-student" class="panel" role="tabpanel" hidden>
+        <ul id="kid-list" class="list"></ul>
+        <div class="card" style="margin-top:12px">
+          <div class="row-between">
+            <div>
+              <div class="item-title">Bus Captain</div>
+              <div id="captain-phone" class="item-sub mono"></div>
+            </div>
+            <a id="call-captain" class="mini-btn is-amber" href="#" style="text-decoration:none">Call</a>
+          </div>
+        </div>
+        <div class="section-head" style="margin-top:18px"><span>Not going</span></div>
+        <ul id="my-notices" class="list"></ul>
+        <p id="my-notices-empty" class="empty">No days marked. Tap Not Going at the top when your child won't take the bus.</p>
+      </section>
+
+      <!-- Fees -->
+      <section id="panel-fees" class="panel" role="tabpanel" hidden>
+        <div id="fee-kid-row" class="choice-row" style="margin-bottom:12px"></div>
+        <div id="fee-setup" class="card" hidden><p class="muted" style="margin:0">The Bus Captain hasn't set the fee and UPI ID for this route yet.</p></div>
+        <div id="fee-box" class="stack">
+          <div class="card">
+            <div class="row-between">
+              <div>
+                <div class="item-title">Transport fee</div>
+                <div id="fee-rate" class="item-sub"></div>
+              </div>
+              <span id="fee-year" class="tag"></span>
+            </div>
+            <div style="height:12px"></div>
+            <div id="months" class="months"></div>
+            <div style="height:12px"></div>
+            <div class="legend"><span class="l-paid">Paid</span><span class="l-pending">Waiting for Bus Captain</span><span class="l-due">Due</span></div>
+          </div>
+          <div class="fee-total"><span class="muted" id="fee-count">Tick the months to pay</span><b id="fee-total">₹0</b></div>
+          <button id="pay-btn" class="primary-btn" type="button" disabled>Pay fee</button>
+          <div class="upi-box"><span class="small muted">Pays to</span><span id="upi-id" class="mono small"></span><button id="copy-upi" class="mini-btn" type="button">Copy</button></div>
+          <p class="hint">Pay fee opens your UPI app (Google Pay, PhonePe, Paytm, BHIM) with the amount filled in. Come back here after paying to record it.</p>
+          <div class="section-head"><span>Payment history</span></div>
+          <ul id="pay-history" class="list"></ul>
+          <p id="pay-history-empty" class="empty">No payments yet.</p>
+        </div>
+      </section>
+
+      <!-- Alerts -->
+      <section id="panel-alerts" class="panel" role="tabpanel" hidden>
+        <ul id="alert-list" class="list"></ul>
+        <p id="alerts-empty" class="empty">No alerts yet.</p>
+        <button id="notify-btn" class="secondary-btn" type="button" style="margin-top:12px" hidden>Turn on phone notifications</button>
+      </section>
+    </div>
+
+    <!-- Child not going -->
+    <dialog id="notgoing-sheet" class="sheet">
+      <div class="sheet-grip"></div>
+      <form id="notgoing-form" class="sheet-body" novalidate>
+        <h2 class="sheet-title">Child not going</h2>
+        <p class="sheet-sub">The Bus Captain gets an alert so the bus doesn't wait at your stop.</p>
+        <div class="field">Child<div id="ng-kids" class="choice-row"></div></div>
+        <div class="field">Day<div id="ng-days" class="choice-row"></div></div>
+        <div class="field">Trip<div id="ng-trips" class="choice-row"></div></div>
+        <label class="field">Note for the Bus Captain (optional)
+          <input id="ng-note" type="text" maxlength="80" placeholder="e.g. Unwell today">
+        </label>
+        <p id="ng-error" class="form-error" role="alert"></p>
+        <button class="danger-btn" type="submit">Send alert to Bus Captain</button>
+        <button id="ng-cancel" class="secondary-btn" type="button">Cancel</button>
+      </form>
+    </dialog>
+
+    <!-- After paying -->
+    <dialog id="paid-sheet" class="sheet">
+      <div class="sheet-grip"></div>
+      <form id="paid-form" class="sheet-body" novalidate>
+        <h2 class="sheet-title">Did the payment go through?</h2>
+        <p id="paid-sub" class="sheet-sub"></p>
+        <label class="field">UPI reference / UTR (optional)
+          <input id="paid-ref" type="text" inputmode="numeric" maxlength="24" placeholder="12-digit number from your UPI app">
+        </label>
+        <p id="paid-error" class="form-error" role="alert"></p>
+        <button class="primary-btn" type="submit">Yes, I paid</button>
+        <button id="paid-no" class="secondary-btn" type="button">No, it didn't go through</button>
+      </form>
+    </dialog>
+
+    <!-- Menu -->
+    <dialog id="menu-sheet" class="sheet">
+      <div class="sheet-grip"></div>
+      <form method="dialog" class="sheet-body">
+        <h2 class="sheet-title">Menu</h2>
+        <div id="route-switch" class="stack"></div>
+        <button id="menu-signout" class="menu-item" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg><span id="signout-label">Sign out</span></button>
+        <button class="secondary-btn" value="cancel">Close</button>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="../shared/firebase-config.js"></script>
+  <script src="../shared/common.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
