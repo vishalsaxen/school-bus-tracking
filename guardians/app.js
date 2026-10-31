@@ -185,7 +185,7 @@ function renderSchool() {
     ['Instagram', info.instagram, links.instagram, 'Open'],
     ['Facebook', info.facebook, links.facebook, 'Open'],
     ['Emergency number', info.emergency, links.emergency, 'Call'],
-  ].filter(([, text, href]) => text && href);
+  ].filter(([, text]) => text);
   $('school-empty').hidden = rows.length > 0;
   $('school-list').replaceChildren(...rows.map(([label, text, href, action]) => {
     const li = B.el('li', 'item');
@@ -193,11 +193,13 @@ function renderSchool() {
     const sub = B.el('div', `item-sub${action === 'Call' ? ' mono' : ''}`, text.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''));
     sub.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
     main.append(B.el('div', 'item-title', label), sub);
+    li.append(main);
+    if (!href) return li; // show what the captain typed even if it isn't a usable link
     const a = B.el('a', `mini-btn${action === 'Call' ? ' is-red' : ' is-amber'}`, action);
     a.href = href;
     a.style.textDecoration = 'none';
     if (action === 'Open') { a.target = '_blank'; a.rel = 'noopener'; }
-    li.append(main, a);
+    li.append(a);
     return li;
   }));
 }
