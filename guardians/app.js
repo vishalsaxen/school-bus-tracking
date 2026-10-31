@@ -468,6 +468,40 @@ function checkHonk() {
 }
 $('honk-close').addEventListener('click', () => { $('honk-banner').hidden = true; });
 
+// ---------- Android app: lock-screen alerts ----------
+// In the Guardians Android app, hand the signed-in guardian, their route and their child's stops
+// to a background service that watches the bus with the phone locked (a web page can't).
+const androidApp = window.BeaconAndroid && window.BeaconAndroid.startWatching ? window.BeaconAndroid : null;
+let androidConfig = null;
+$('get-app').hidden = Boolean(androidApp) || !/Android/i.test(navigator.userAgent);
+$('app-alerts-on').hidden = !androidApp;
+
+function syncAndroid() {
+  if (!androidApp) return;
+  const user = state.fb && state.fb.auth.currentUser;
+  const r = route();
+  if (!user || !r) {
+    if (androidConfig !== null) androidApp.stopWatching();
+    androidConfig = null;
+    return;
+  }
+  const stops = state.kids.map(stopOf).filter((s) => s && typeof s.lat === 'number')
+    .filter((s, i, all) => all.findIndex((x) => x.id === s.id) === i)
+    .map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng }));
+  const cfg = window.BUS_FIREBASE_CONFIG;
+  const next = JSON.stringify({
+    apiKey: cfg.apiKey,
+    projectId: cfg.projectId,
+    routeId: r.id,
+    routeName: `${r.name || 'School bus'}${r.school ? ` · ${r.school}` : ''}`,
+    refreshToken: user.refreshToken,
+    stops,
+  });
+  if (next === androidConfig) return;
+  androidConfig = next;
+  androidApp.startWatching(next);
+}
+
 // ---------- Menu, refresh ----------
 $('menu-btn').addEventListener('click', () => {
   $('route-switch').replaceChildren(...(state.routes.length > 1 ? state.routes.map((r) => {
@@ -528,6 +562,7 @@ function selectRoute(id) {
   routeUnsubs.push(fb.onSnapshot(mine('students'), (snap) => {
     state.kids = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
     renderAll();
+    syncAndroid();
   }, fail));
   routeUnsubs.push(fb.onSnapshot(mine('notices'), (snap) => {
     state.notices = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -547,6 +582,7 @@ function watchRoutes() {
     if (!state.routes.length) {
       routeUnsubs.splice(0).forEach((u) => u());
       state.routeId = null;
+      syncAndroid();
       $('no-route-text').textContent = `No Bus Captain has added ${B.formatMobile(state.me)} for a child yet. Ask your Bus Captain to add this number in their app under Students, then open this page again.`;
       show('no-route');
       return;
@@ -556,6 +592,7 @@ function watchRoutes() {
     selectRoute(pick);
     checkHonk();
     renderAll();
+    syncAndroid();
   }, (error) => {
     console.error(error);
     $('no-route-text').textContent = B.dbErrorText(error);
@@ -586,7 +623,7 @@ async function start() {
     if (routeUnsub) { routeUnsub(); routeUnsub = null; }
     routeUnsubs.splice(0).forEach((u) => u());
     Object.assign(state, { me: user ? user.phoneNumber : null, routes: [], routeId: null, kids: [], notices: [], payments: [], seenHonk: null });
-    if (!state.me) { show('signin'); return; }
+    if (!state.me) { show('signin'); syncAndroid(); return; }
     watchRoutes();
   });
 }

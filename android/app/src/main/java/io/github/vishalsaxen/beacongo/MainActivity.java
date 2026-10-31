@@ -26,7 +26,7 @@ import android.webkit.WebViewClient;
  * TrackingService so the bus location keeps reaching guardians while the screen is locked.
  */
 public class MainActivity extends Activity {
-    static final String SITE = "https://vishalsaxen.github.io/school-bus-tracking/bus-captain/";
+    static final String SITE = BuildConfig.SITE;
     private static final String SITE_ORIGIN = "https://vishalsaxen.github.io/school-bus-tracking/";
     private static final int REQ_LOCATION = 1;
     private static final int REQ_NOTIFICATIONS = 2;
@@ -91,6 +91,7 @@ public class MainActivity extends Activity {
 
         // The phone may have been restarted or the app swiped away: carry on sharing if it was on.
         if (TrackingService.isConfigured(this)) TrackingService.start(this);
+        if (WatchService.isConfigured(this)) WatchService.start(this);
     }
 
     private boolean hasLocationPermission() {
@@ -146,7 +147,7 @@ public class MainActivity extends Activity {
         /** config: JSON with apiKey, projectId, collection, docId, refreshToken, label. */
         @JavascriptInterface
         public void startTracking(String config) {
-            if (!fromOurPage()) return;
+            if (!fromOurPage() || !"captain".equals(BuildConfig.FLAVOR)) return;
             runOnUiThread(() -> {
                 TrackingService.saveConfig(MainActivity.this, config);
                 if (Build.VERSION.SDK_INT >= 33
@@ -162,6 +163,32 @@ public class MainActivity extends Activity {
         public void stopTracking() {
             if (!fromOurPage()) return;
             runOnUiThread(() -> TrackingService.stop(MainActivity.this));
+        }
+
+        /** Guardians app: config JSON with apiKey, projectId, routeId, refreshToken, stops, routeName. */
+        @JavascriptInterface
+        public void startWatching(String config) {
+            if (!fromOurPage() || !"guardian".equals(BuildConfig.FLAVOR)) return;
+            runOnUiThread(() -> {
+                boolean changed = WatchService.saveConfig(MainActivity.this, config);
+                if (Build.VERSION.SDK_INT >= 33
+                        && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIFICATIONS);
+                }
+                if (changed || !WatchService.isRunning()) WatchService.start(MainActivity.this);
+                askToSkipBatteryOptimisation();
+            });
+        }
+
+        @JavascriptInterface
+        public void stopWatching() {
+            if (!fromOurPage()) return;
+            runOnUiThread(() -> WatchService.stop(MainActivity.this));
+        }
+
+        @JavascriptInterface
+        public boolean isWatching() {
+            return WatchService.isConfigured(MainActivity.this);
         }
 
         @JavascriptInterface
